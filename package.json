@@ -1,6 +1,7 @@
 {
   "name": "automaton-automator",
   "publisher": "HakkinDavid",
+  "icon": "auto.png",
   "repository": {
     "url": "https://github.com/HakkinDavid/automaton-automator",
     "type": "git"
@@ -39,11 +40,15 @@
     "commands": [
       {
         "command": "automatonAutomator.copyAsPng",
-        "title": "Auto Graphviz: Copy as PNG"
+        "title": "Automaton Automator: Copy as PNG"
       },
       {
         "command": "automatonAutomator.showPreview",
-        "title": "Auto Graphviz: Show Preview"
+        "title": "Automaton Automator: Show Preview"
+      },
+      {
+        "command": "automatonAutomator.insertSymbol",
+        "title": "Automaton Automator: Insert Symbol"
       }
     ],
     "menus": {
@@ -59,6 +64,17 @@
           "group": "automatonAutomator"
         }
       ]
+    },
+    "configuration": {
+        "title": "Automaton Automator",
+        "properties": {
+            "automatonAutomator.symbolMappings": {
+                "type": "object",
+                "default": {
+                },
+                "description": "Mapeos personalizados de secuencias de escape a símbolos matemáticos"
+            }
+        }
     }
   },
   "scripts": {

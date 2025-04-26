@@ -9,13 +9,30 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activate = void 0;
+exports.deactivate = exports.activate = void 0;
 const vscode = require("vscode");
 const path = require("path");
 const child_process_1 = require("child_process");
 const fs = require("fs");
 let currentPanel;
 let activeDocument;
+let symbolDecorationType;
+const config = vscode.workspace.getConfiguration('automatonAutomator');
+const userSymbolMap = config.get('symbolMappings') || {};
+const defaultSymbolMap = {
+    '\\epsilon': 'ε',
+    '\\to': '→',
+    '\\rightarrow': '→',
+    '\\union': '∪',
+    '\\cup': '∪',
+    '\\intersect': '∩',
+    '\\cap': '∩',
+    '\\sigma': 'Σ',
+    '\\emptyset': '∅',
+    '\\empty': '∅'
+};
+// Definir mapeo de secuencias de escape a símbolos matemáticos
+const symbolMap = Object.assign(Object.assign({}, defaultSymbolMap), userSymbolMap);
 function activate(context) {
     console.log('Automaton Automator is now active!');
     // Registrar el comando para mostrar la vista previa
@@ -30,6 +47,28 @@ function activate(context) {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
             yield copyAsPng(editor.document);
+        }
+    }));
+    // Registrar el comando para insertar símbolo
+    const insertSymbolCommand = vscode.commands.registerCommand('automatonAutomator.insertSymbol', () => __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        const symbols = [
+            { label: 'ε (epsilon)', value: 'ε' },
+            { label: '→ (flecha)', value: '→' },
+            { label: '∪ (unión)', value: '∪' },
+            { label: '∩ (intersección)', value: '∩' },
+            { label: 'Σ (sigma)', value: 'Σ' },
+            { label: '∅ (conjunto vacío)', value: '∅' }
+        ];
+        const selected = yield vscode.window.showQuickPick(symbols.map(s => s.label), { placeHolder: 'Selecciona un símbolo para insertar' });
+        if (selected) {
+            const symbol = (_a = symbols.find(s => s.label === selected)) === null || _a === void 0 ? void 0 : _a.value;
+            const editor = vscode.window.activeTextEditor;
+            if (editor && symbol) {
+                editor.edit(editBuilder => {
+                    editBuilder.insert(editor.selection.active, symbol);
+                });
+            }
         }
     }));
     // Auto-mostrar la previsualización cuando se abre un archivo .auto
@@ -47,6 +86,7 @@ function activate(context) {
     // Cambio del documento activo
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor && isAutoFile(editor.document)) {
+            applySymbolDecorations(editor);
             // Si cambiamos a un editor con un archivo .auto, actualizamos la previsualización
             if (currentPanel) {
                 updatePreview(currentPanel, editor.document);
@@ -58,11 +98,15 @@ function activate(context) {
         }
         else if (currentPanel && !editor) {
             // Opcional: si queremos ocultar el panel cuando no hay editor activo
-            // currentPanel.dispose();
+            currentPanel.dispose();
         }
     });
     // Cambio del documento
     vscode.workspace.onDidChangeTextDocument(event => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor && event.document === editor.document && isAutoFile(editor.document)) {
+            applySymbolDecorations(editor);
+        }
         if (isAutoFile(event.document) && currentPanel) {
             // Si el documento activo cambia, actualizamos la previsualización
             if (activeDocument && event.document.uri.toString() === activeDocument.uri.toString()) {
@@ -70,13 +114,62 @@ function activate(context) {
             }
         }
     });
-    context.subscriptions.push(showPreviewCommand, copyAsPngCommand);
+    context.subscriptions.push(showPreviewCommand, copyAsPngCommand, insertSymbolCommand);
     // Si hay un editor activo con un archivo .auto al activar la extensión, mostrar la previsualización
     if (vscode.window.activeTextEditor && isAutoFile(vscode.window.activeTextEditor.document)) {
+        applySymbolDecorations(vscode.window.activeTextEditor);
         showPreview(context, vscode.window.activeTextEditor.document);
     }
 }
 exports.activate = activate;
+// Utiliza decoradores de texto en VS Code para mostrar los símbolos
+function applySymbolDecorations(editor) {
+    /*
+    if (symbolDecorationType) {
+        symbolDecorationType.dispose();
+    }
+
+    symbolDecorationType = vscode.window.createTextEditorDecorationType({
+        after: {
+            margin: '0 0 0 3px',
+            color: '#999999'
+        }
+    });
+    
+    const decorations: vscode.DecorationOptions[] = [];
+    const text = editor.document.getText();
+    
+    for (const [sequence, symbol] of Object.entries(symbolMap)) {
+        const regex = new RegExp(sequence.replace(/\\/g, '\\\\'), 'g');
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            const startPos = editor.document.positionAt(match.index);
+            const endPos = editor.document.positionAt(match.index + match[0].length);
+            
+            decorations.push({
+                range: new vscode.Range(startPos, endPos),
+                renderOptions: {
+                    after: {
+                        contentText: ` (${symbol})`,
+                    }
+                }
+            });
+        }
+    }
+    
+    editor.setDecorations(symbolDecorationType, decorations);
+    */
+}
+function preprocessDotCode(dotCode) {
+    // Reemplazar todas las secuencias en el código
+    let processedCode = dotCode;
+    for (const [sequence, symbol] of Object.entries(symbolMap)) {
+        // Usamos una expresión regular para capturar la secuencia de escape
+        const regex = new RegExp(sequence.replace(/\\/g, '\\\\'), 'g');
+        processedCode = processedCode.replace(regex, symbol);
+    }
+    return processedCode;
+}
 function isAutoFile(document) {
     return document.languageId === 'dot' || document.fileName.endsWith('.auto');
 }
@@ -119,8 +212,9 @@ function showPreview(context, document) {
 function updatePreview(panel, document) {
     try {
         const dotCode = document.getText();
+        const processedDotCode = preprocessDotCode(dotCode);
         // Convertir el código DOT a SVG usando Graphviz
-        const svgContent = convertDotToSvg(dotCode);
+        const svgContent = convertDotToSvg(processedDotCode);
         panel.webview.html = getWebviewContent(svgContent);
         panel.title = `Vista previa: ${path.basename(document.fileName)}`;
     }
@@ -146,6 +240,7 @@ function copyAsPng(document) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const dotCode = document.getText();
+            const processedDotCode = preprocessDotCode(dotCode);
             // Crear un archivo temporal para el PNG (necesario para algunos métodos de portapapeles)
             const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
             if (!fs.existsSync(tmpDir)) {
@@ -154,7 +249,7 @@ function copyAsPng(document) {
             const pngFilePath = path.join(tmpDir, `automaton-${Date.now()}.png`);
             // Generar el PNG usando Graphviz y guardarlo como archivo
             (0, child_process_1.execSync)(`dot -Tpng -o "${pngFilePath}"`, {
-                input: dotCode
+                input: processedDotCode
             });
             // Detectar sistema operativo
             const platform = process.platform;
@@ -283,7 +378,7 @@ function getWebviewContent(svgContent) {
 </head>
 <body>
     <div class="controls">
-        <button id="copyBtn">Copiar como PNG</button>
+        <button onclick="copy()">Copiar como PNG</button>
         <button id="zoomInBtn">Zoom +</button>
         <button id="zoomOutBtn">Zoom -</button>
         <button id="resetZoomBtn">Reset Zoom</button>
@@ -294,24 +389,34 @@ function getWebviewContent(svgContent) {
     <script>
         const vscode = acquireVsCodeApi();
         let scale = 1;
+
+        function copy () {
+            vscode.postMessage({
+                command: 'copyAsPng'
+            });
+        }
         
-        document.getElementById('copyBtn').addEventListener('click', () => {
+        document.getElementById('copyBtn').addEventListener('click', (e) => {
+            e.preventDefault(); // Prevenir comportamiento por defecto
             vscode.postMessage({
                 command: 'copyAsPng'
             });
         });
         
-        document.getElementById('zoomInBtn').addEventListener('click', () => {
+        document.getElementById('zoomInBtn').addEventListener('click', (e) => {
+            e.preventDefault(); // Prevenir comportamiento por defecto
             scale += 0.1;
             updateZoom();
         });
         
-        document.getElementById('zoomOutBtn').addEventListener('click', () => {
+        document.getElementById('zoomOutBtn').addEventListener('click', (e) => {
+            e.preventDefault(); // Prevenir comportamiento por defecto
             scale = Math.max(0.1, scale - 0.1);
             updateZoom();
         });
         
-        document.getElementById('resetZoomBtn').addEventListener('click', () => {
+        document.getElementById('resetZoomBtn').addEventListener('click', (e) => {
+            e.preventDefault(); // Prevenir comportamiento por defecto
             scale = 1;
             updateZoom();
         });
@@ -323,6 +428,28 @@ function getWebviewContent(svgContent) {
                 svg.style.transformOrigin = 'top left';
             }
         }
+        
+        // Guardar y restaurar el estado de zoom
+        // Intentar restaurar el estado anterior
+        const state = vscode.getState();
+        if (state && state.scale) {
+            scale = state.scale;
+            // Aplicar zoom después de que el DOM esté completamente cargado
+            document.addEventListener('DOMContentLoaded', () => {
+                updateZoom();
+            });
+        }
+        
+        // Función para guardar el estado actual
+        function saveState() {
+            vscode.setState({ scale: scale });
+        }
+        
+        // Guardar estado después de cada cambio de zoom
+        const zoomButtons = ['zoomInBtn', 'zoomOutBtn', 'resetZoomBtn'];
+        zoomButtons.forEach(id => {
+            document.getElementById(id).addEventListener('click', saveState);
+        });
     </script>
 </body>
 </html>`;
@@ -355,4 +482,11 @@ function getErrorWebviewContent(errorMessage) {
 </body>
 </html>`;
 }
+function deactivate() {
+    if (symbolDecorationType) {
+        symbolDecorationType.dispose();
+        symbolDecorationType = undefined;
+    }
+}
+exports.deactivate = deactivate;
 //# sourceMappingURL=extension.js.map
