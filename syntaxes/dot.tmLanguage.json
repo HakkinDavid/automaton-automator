@@ -1,0 +1,81 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "DOT",
+    "patterns": [
+      {
+        "include": "#comments"
+      },
+      {
+        "include": "#keywords"
+      },
+      {
+        "include": "#strings"
+      },
+      {
+        "include": "#node_id"
+      },
+      {
+        "include": "#attributes"
+      }
+    ],
+    "repository": {
+      "comments": {
+        "patterns": [
+          {
+            "name": "comment.line.double-slash.dot",
+            "match": "//.*$"
+          },
+          {
+            "name": "comment.block.dot",
+            "begin": "/\\*",
+            "end": "\\*/"
+          },
+          {
+            "name": "comment.line.number-sign.dot",
+            "match": "#.*$"
+          }
+        ]
+      },
+      "keywords": {
+        "patterns": [
+          {
+            "name": "keyword.control.dot",
+            "match": "\\b(digraph|graph|node|edge|subgraph|strict)\\b"
+          },
+          {
+            "name": "keyword.operator.dot",
+            "match": "(->|--|=)"
+          }
+        ]
+      },
+      "strings": {
+        "name": "string.quoted.double.dot",
+        "begin": "\"",
+        "end": "\"",
+        "patterns": [
+          {
+            "name": "constant.character.escape.dot",
+            "match": "\\\\."
+          }
+        ]
+      },
+      "node_id": {
+        "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+        "name": "entity.name.function.dot"
+      },
+      "attributes": {
+        "begin": "\\[",
+        "end": "\\]",
+        "patterns": [
+          {
+            "include": "#strings"
+          },
+          {
+            "name": "variable.parameter.attribute-name.dot",
+            "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b"
+          }
+        ]
+      }
+    },
+    "scopeName": "source.dot"
+  }

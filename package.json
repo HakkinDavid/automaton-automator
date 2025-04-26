@@ -1,0 +1,76 @@
+{
+  "name": "automaton-automator",
+  "author": {
+    "name": "HakkinDavid",
+    "email": "desr11@hotmail.com",
+    "url": "https://github.com/HakkinDavid"
+  },
+  "displayName": "Automaton Automator",
+  "description": "Automaton editor with real time preview. Requires Graphviz.",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Visualization",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:dot",
+    "onCommand:automatonAutomator.showPreview"
+  ],
+  "main": "extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "dot",
+        "aliases": ["DOT", "Graphviz", "auto"],
+        "extensions": [".auto", ".dot"],
+        "configuration": "language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "dot",
+        "scopeName": "source.dot",
+        "path": "syntaxes/dot.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "automatonAutomator.copyAsPng",
+        "title": "Auto Graphviz: Copy as PNG"
+      },
+      {
+        "command": "automatonAutomator.showPreview",
+        "title": "Auto Graphviz: Show Preview"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceExtname == .auto || resourceExtname == .dot",
+          "command": "automatonAutomator.copyAsPng",
+          "group": "automatonAutomator"
+        },
+        {
+          "when": "resourceExtname == .auto || resourceExtname == .dot",
+          "command": "automatonAutomator.showPreview",
+          "group": "automatonAutomator"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint . --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@types/node": "^14.14.37",
+    "@types/vscode": "^1.60.0",
+    "viz.js": "^2.1.2",
+    "typescript": "^4.5.5"
+  }
+}
