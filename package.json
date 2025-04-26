@@ -5,6 +5,10 @@
     "email": "desr11@hotmail.com",
     "url": "https://github.com/HakkinDavid"
   },
+  "repository": {
+    "url": "https://github.com/HakkinDavid/automaton-automator",
+    "type": "github"
+  },
   "displayName": "Automaton Automator",
   "description": "Automaton editor with real time preview. Requires Graphviz.",
   "version": "0.1.0",

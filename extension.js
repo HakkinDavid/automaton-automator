@@ -13,6 +13,7 @@ exports.activate = void 0;
 const vscode = require("vscode");
 const path = require("path");
 const child_process_1 = require("child_process");
+const fs = require("fs");
 let currentPanel;
 let activeDocument;
 function activate(context) {
@@ -88,7 +89,7 @@ function showPreview(context, document) {
         return;
     }
     // Crear un nuevo panel de webview al lado del editor
-    const panel = vscode.window.createWebviewPanel('automatonAutomatorPreview', 'Auto Graphviz Preview', {
+    const panel = vscode.window.createWebviewPanel('automatonAutomatorPreview', 'Automaton Automator Preview', {
         // Colocar explícitamente al lado del editor activo
         viewColumn: vscode.ViewColumn.Beside,
         // Preservar el enfoque en el editor
@@ -138,26 +139,103 @@ function convertDotToSvg(dotCode) {
     }
     catch (error) {
         // Si falla, informamos al usuario que necesita instalar Graphviz
-        throw new Error(`Error al generar SVG: ${error}\nAsegúrate de tener Graphviz instalado en tu sistema y que 'dot' esté en tu PATH.`);
+        throw new Error(`Error al generar SVG: ${error}.`);
     }
 }
 function copyAsPng(document) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const dotCode = document.getText();
-            // Convertir DOT a PNG usando Graphviz y obtener directamente los datos binarios
-            // Nota: Usamos Buffer en lugar de encoding para manejar datos binarios
-            const pngBuffer = (0, child_process_1.execSync)(`dot -Tpng`, {
-                input: dotCode,
-                encoding: null // esto hace que se devuelva un Buffer en lugar de un string
+            // Crear un archivo temporal para el PNG (necesario para algunos métodos de portapapeles)
+            const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
+            if (!fs.existsSync(tmpDir)) {
+                fs.mkdirSync(tmpDir, { recursive: true });
+            }
+            const pngFilePath = path.join(tmpDir, `automaton-${Date.now()}.png`);
+            // Generar el PNG usando Graphviz y guardarlo como archivo
+            (0, child_process_1.execSync)(`dot -Tpng -o "${pngFilePath}"`, {
+                input: dotCode
             });
-            // Convertir el buffer binario a base64
-            const pngBase64 = Buffer.from(pngBuffer).toString('base64');
-            // Crear un formato que pueda pegarse en aplicaciones que soporten imágenes
-            const htmlContent = `<img src="data:image/png;base64,${pngBase64}" alt="Automaton Graph by HakkinDavid" />`;
-            // Copiar al portapapeles
-            yield vscode.env.clipboard.writeText(htmlContent);
-            vscode.window.showInformationMessage('Autómata copiado como imagen PNG. Pégalo en una aplicación que soporte HTML con imágenes.');
+            // Detectar sistema operativo
+            const platform = process.platform;
+            let success = false;
+            if (platform === 'win32') {
+                // Windows: Usar PowerShell para copiar la imagen al portapapeles
+                try {
+                    const psScript = `
+                    Add-Type -AssemblyName System.Windows.Forms
+                    $img = [System.Drawing.Image]::FromFile('${pngFilePath.replace(/\\/g, '\\\\')}')
+                    [System.Windows.Forms.Clipboard]::SetImage($img)
+                    $img.Dispose()
+                `;
+                    (0, child_process_1.execSync)(`powershell -command "${psScript}"`, { windowsHide: true });
+                    success = true;
+                }
+                catch (winError) {
+                    console.error('Error al copiar con PowerShell:', winError);
+                }
+            }
+            else if (platform === 'darwin') {
+                // macOS: Usar osascript (AppleScript)
+                try {
+                    (0, child_process_1.execSync)(`osascript -e 'set the clipboard to (POSIX file "${pngFilePath}")'`);
+                    success = true;
+                }
+                catch (macError) {
+                    console.error('Error al copiar con osascript:', macError);
+                }
+            }
+            else if (platform === 'linux') {
+                // Linux: Intentar usar xclip si está disponible
+                try {
+                    // Intentar con xclip (para X11)
+                    (0, child_process_1.execSync)(`xclip -selection clipboard -t image/png -i "${pngFilePath}"`);
+                    success = true;
+                }
+                catch (linuxError) {
+                    try {
+                        // Intentar con wl-copy (para Wayland)
+                        (0, child_process_1.execSync)(`wl-copy < "${pngFilePath}"`);
+                        success = true;
+                    }
+                    catch (waylandError) {
+                        console.error('Error al copiar con xclip/wl-copy:', linuxError, waylandError);
+                    }
+                }
+            }
+            // Si los métodos específicos del sistema funcionaron
+            const DeleteBtn = 'Eliminar archivo temporal';
+            if (success) {
+                vscode.window.showInformationMessage('Autómata copiado como imagen PNG al portapapeles.', DeleteBtn).then(selection => {
+                    if (selection === DeleteBtn) {
+                        // Eliminar archivo temporal
+                        try {
+                            fs.unlinkSync(pngFilePath);
+                        }
+                        catch (cleanupError) {
+                            console.error('Error al eliminar archivo temporal:', cleanupError);
+                        }
+                    }
+                });
+            }
+            else {
+                // Método de respaldo: Copiar como HTML+base64 (el método original)
+                const pngBuffer = fs.readFileSync(pngFilePath);
+                const pngBase64 = pngBuffer.toString('base64');
+                const htmlContent = `<img src="data:image/png;base64,${pngBase64}" alt="Automaton Graph" />`;
+                yield vscode.env.clipboard.writeText(htmlContent);
+                vscode.window.showInformationMessage('Autómata copiado como HTML+imagen. Para mejor compatibilidad, considera instalar xclip (Linux), o usar las herramientas nativas del sistema.', DeleteBtn).then(selection => {
+                    if (selection === DeleteBtn) {
+                        // Eliminar archivo temporal
+                        try {
+                            fs.unlinkSync(pngFilePath);
+                        }
+                        catch (cleanupError) {
+                            console.error('Error al eliminar archivo temporal:', cleanupError);
+                        }
+                    }
+                });
+            }
         }
         catch (error) {
             vscode.window.showErrorMessage(`Error al crear PNG: ${error}`);
@@ -170,7 +248,7 @@ function getWebviewContent(svgContent) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto Graphviz Preview</title>
+    <title>Automaton Automator</title>
     <style>
         body {
             display: flex;

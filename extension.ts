@@ -91,7 +91,7 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
     // Crear un nuevo panel de webview al lado del editor
     const panel = vscode.window.createWebviewPanel(
         'automatonAutomatorPreview',
-        'Auto Graphviz Preview',
+        'Automaton Automator Preview',
         {
             // Colocar explícitamente al lado del editor activo
             viewColumn: vscode.ViewColumn.Beside,
@@ -150,7 +150,7 @@ function convertDotToSvg(dotCode: string): string {
         return result;
     } catch (error) {
         // Si falla, informamos al usuario que necesita instalar Graphviz
-        throw new Error(`Error al generar SVG: ${error}\nAsegúrate de tener Graphviz instalado en tu sistema y que 'dot' esté en tu PATH.`);
+        throw new Error(`Error al generar SVG: ${error}.`);
     }
 }
 
@@ -159,11 +159,11 @@ async function copyAsPng(document: vscode.TextDocument) {
         const dotCode = document.getText();
         
         // Crear un archivo temporal para el PNG (necesario para algunos métodos de portapapeles)
-        const tmpDir = path.join(require('os').tmpdir(), 'auto-graphviz');
+        const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
         if (!fs.existsSync(tmpDir)) {
             fs.mkdirSync(tmpDir, { recursive: true });
         }
-        const pngFilePath = path.join(tmpDir, `graph-${Date.now()}.png`);
+        const pngFilePath = path.join(tmpDir, `automaton-${Date.now()}.png`);
         
         // Generar el PNG usando Graphviz y guardarlo como archivo
         execSync(`dot -Tpng -o "${pngFilePath}"`, { 
@@ -217,22 +217,38 @@ async function copyAsPng(document: vscode.TextDocument) {
         }
         
         // Si los métodos específicos del sistema funcionaron
+        const DeleteBtn = 'Eliminar archivo temporal';
         if (success) {
-            vscode.window.showInformationMessage('Autómata copiado como imagen PNG al portapapeles.');
+            vscode.window.showInformationMessage('Autómata copiado como imagen PNG al portapapeles.',
+                DeleteBtn
+            ).then(selection => {
+                if (selection === DeleteBtn) {
+                    // Eliminar archivo temporal
+                    try {
+                        fs.unlinkSync(pngFilePath);
+                    } catch (cleanupError) {
+                        console.error('Error al eliminar archivo temporal:', cleanupError);
+                    }
+                }
+            });
         } else {
             // Método de respaldo: Copiar como HTML+base64 (el método original)
             const pngBuffer = fs.readFileSync(pngFilePath);
             const pngBase64 = pngBuffer.toString('base64');
             const htmlContent = `<img src="data:image/png;base64,${pngBase64}" alt="Automaton Graph" />`;
             await vscode.env.clipboard.writeText(htmlContent);
-            vscode.window.showInformationMessage('Autómata copiado como HTML+imagen. Para mejor compatibilidad, considera instalar xclip (Linux), o usar las herramientas nativas del sistema.');
-        }
-        
-        // Eliminar archivo temporal
-        try {
-            fs.unlinkSync(pngFilePath);
-        } catch (cleanupError) {
-            console.error('Error al eliminar archivo temporal:', cleanupError);
+            vscode.window.showInformationMessage('Autómata copiado como HTML+imagen. Para mejor compatibilidad, considera instalar xclip (Linux), o usar las herramientas nativas del sistema.',
+                DeleteBtn
+            ).then(selection => {
+                if (selection === DeleteBtn) {
+                    // Eliminar archivo temporal
+                    try {
+                        fs.unlinkSync(pngFilePath);
+                    } catch (cleanupError) {
+                        console.error('Error al eliminar archivo temporal:', cleanupError);
+                    }
+                }
+            });
         }
         
     } catch (error) {
@@ -246,7 +262,7 @@ function getWebviewContent(svgContent: string): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto Graphviz Preview</title>
+    <title>Automaton Automator</title>
     <style>
         body {
             display: flex;
