@@ -283,7 +283,7 @@ async function copyAsPng(document: vscode.TextDocument) {
                 execSync(`powershell -command "${psScript}"`, { windowsHide: true });
                 success = true;
             } catch (winError) {
-                console.error('Error al copiar con PowerShell:', winError);
+                console.error('Error when copying with PowerShell:', winError);
             }
         } 
         else if (platform === 'darwin') {
@@ -291,7 +291,7 @@ async function copyAsPng(document: vscode.TextDocument) {
                 execSync(`osascript -e 'set the clipboard to (POSIX file "${pngFilePath}")'`);
                 success = true;
             } catch (macError) {
-                console.error('Error al copiar con osascript:', macError);
+                console.error('Error when copying with osascript:', macError);
             }
         } 
         else if (platform === 'linux') {
@@ -303,21 +303,21 @@ async function copyAsPng(document: vscode.TextDocument) {
                     execSync(`wl-copy < "${pngFilePath}"`);
                     success = true;
                 } catch (waylandError) {
-                    console.error('Error al copiar con xclip/wl-copy:', linuxError, waylandError);
+                    console.error('Error when copying with xclip/wl-copy:', linuxError, waylandError);
                 }
             }
         }
         
-        const DeleteBtn = 'Eliminar archivo temporal';
+        const DeleteBtn = 'Delete temporary file';
         if (success) {
-            vscode.window.showInformationMessage('Autómata copiado como imagen PNG al portapapeles.',
+            vscode.window.showInformationMessage('Automaton copied as PNG to the clipboard.',
                 DeleteBtn
             ).then(selection => {
                 if (selection === DeleteBtn) {
                     try {
                         fs.unlinkSync(pngFilePath);
                     } catch (cleanupError) {
-                        console.error('Error al eliminar archivo temporal:', cleanupError);
+                        console.error('Error when deleting temporary file:', cleanupError);
                     }
                 }
             });
@@ -326,21 +326,21 @@ async function copyAsPng(document: vscode.TextDocument) {
             const pngBase64 = pngBuffer.toString('base64');
             const htmlContent = `<img src="data:image/png;base64,${pngBase64}" alt="Automaton Graph" />`;
             await vscode.env.clipboard.writeText(htmlContent);
-            vscode.window.showInformationMessage('Autómata copiado como HTML+imagen. Para mejor compatibilidad, considera instalar xclip (Linux), o usar las herramientas nativas del sistema.',
+            vscode.window.showInformationMessage('Automaton copied as HTML image to the clipboard.',
                 DeleteBtn
             ).then(selection => {
                 if (selection === DeleteBtn) {
                     try {
                         fs.unlinkSync(pngFilePath);
                     } catch (cleanupError) {
-                        console.error('Error al eliminar archivo temporal:', cleanupError);
+                        console.error('Error when deleting temporary file:', cleanupError);
                     }
                 }
             });
         }
         
     } catch (error) {
-        vscode.window.showErrorMessage(`Error al crear PNG: ${error}`);
+        vscode.window.showErrorMessage(`Error when creating PNG: ${error}`);
     }
 }
 
@@ -385,7 +385,7 @@ function getWebviewContent(svgContent: string): string {
 </head>
 <body>
     <div class="controls">
-        <button id="copyBtn">Copiar como PNG</button>
+        <button id="copyBtn">Copy as PNG</button>
         <button id="zoomInBtn">Zoom +</button>
         <button id="zoomOutBtn">Zoom -</button>
         <button id="resetZoomBtn">Reset Zoom</button>
@@ -487,9 +487,9 @@ function getErrorWebviewContent(errorMessage: string): string {
     </style>
 </head>
 <body>
-    <h2>Error al generar la visualización</h2>
+    <h2>Couldn't generate your automaton</h2>
     <pre>${errorMessage}</pre>
-    <p>Asegúrate de que el código DOT sea válido y que Graphviz esté instalado correctamente.</p>
+    <p>Make sure to have Graphviz and DOT installed and in your PATH.</p>
 </body>
 </html>`;
 }
