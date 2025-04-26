@@ -211,11 +211,24 @@ function showPreview(context, document) {
 }
 function updatePreview(panel, document) {
     try {
+        // Si el panel ya tiene contenido, solo actualizamos el SVG sin recrear toda la página
         const dotCode = document.getText();
         const processedDotCode = preprocessDotCode(dotCode);
         // Convertir el código DOT a SVG usando Graphviz
         const svgContent = convertDotToSvg(processedDotCode);
-        panel.webview.html = getWebviewContent(svgContent);
+        // Verificar si el panel ya tiene inicializado su HTML
+        const isPanelInitialized = panel.webview.html.includes('automaton-automator-initialized');
+        if (isPanelInitialized) {
+            // Solo enviar el nuevo SVG al webview existente
+            panel.webview.postMessage({
+                command: 'updateSvg',
+                svgContent: svgContent
+            });
+        }
+        else {
+            // Primera vez, inicializar el webview completo
+            panel.webview.html = getWebviewContent(svgContent);
+        }
         panel.title = `Vista previa: ${path.basename(document.fileName)}`;
     }
     catch (error) {
@@ -339,7 +352,7 @@ function copyAsPng(document) {
 }
 function getWebviewContent(svgContent) {
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="automaton-automator-initialized">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -378,7 +391,7 @@ function getWebviewContent(svgContent) {
 </head>
 <body>
     <div class="controls">
-        <button onclick="copy()">Copiar como PNG</button>
+        <button id="copyBtn">Copiar como PNG</button>
         <button id="zoomInBtn">Zoom +</button>
         <button id="zoomOutBtn">Zoom -</button>
         <button id="resetZoomBtn">Reset Zoom</button>
@@ -389,36 +402,41 @@ function getWebviewContent(svgContent) {
     <script>
         const vscode = acquireVsCodeApi();
         let scale = 1;
-
-        function copy () {
-            vscode.postMessage({
-                command: 'copyAsPng'
-            });
-        }
         
+        // Intentar restaurar el estado previo
+        const currentState = vscode.getState() || { scale: 1 };
+        scale = currentState.scale;
+        
+        // Aplicar el zoom inicial
+        updateZoom();
+        
+        // Configurar manejadores de eventos para los botones
         document.getElementById('copyBtn').addEventListener('click', (e) => {
-            e.preventDefault(); // Prevenir comportamiento por defecto
+            e.preventDefault();
             vscode.postMessage({
                 command: 'copyAsPng'
             });
         });
         
         document.getElementById('zoomInBtn').addEventListener('click', (e) => {
-            e.preventDefault(); // Prevenir comportamiento por defecto
+            e.preventDefault();
             scale += 0.1;
             updateZoom();
+            saveState();
         });
         
         document.getElementById('zoomOutBtn').addEventListener('click', (e) => {
-            e.preventDefault(); // Prevenir comportamiento por defecto
+            e.preventDefault();
             scale = Math.max(0.1, scale - 0.1);
             updateZoom();
+            saveState();
         });
         
         document.getElementById('resetZoomBtn').addEventListener('click', (e) => {
-            e.preventDefault(); // Prevenir comportamiento por defecto
+            e.preventDefault();
             scale = 1;
             updateZoom();
+            saveState();
         });
         
         function updateZoom() {
@@ -429,26 +447,32 @@ function getWebviewContent(svgContent) {
             }
         }
         
-        // Guardar y restaurar el estado de zoom
-        // Intentar restaurar el estado anterior
-        const state = vscode.getState();
-        if (state && state.scale) {
-            scale = state.scale;
-            // Aplicar zoom después de que el DOM esté completamente cargado
-            document.addEventListener('DOMContentLoaded', () => {
-                updateZoom();
-            });
-        }
-        
-        // Función para guardar el estado actual
         function saveState() {
             vscode.setState({ scale: scale });
         }
         
-        // Guardar estado después de cada cambio de zoom
-        const zoomButtons = ['zoomInBtn', 'zoomOutBtn', 'resetZoomBtn'];
-        zoomButtons.forEach(id => {
-            document.getElementById(id).addEventListener('click', saveState);
+        // Escuchar mensajes del backend de la extensión
+        window.addEventListener('message', event => {
+            const message = event.data;
+            
+            switch (message.command) {
+                case 'updateSvg':
+                    // Actualizar solo el contenido del SVG sin recargar la página completa
+                    document.getElementById('svgContainer').innerHTML = message.svgContent;
+                    // Reaplica el zoom después de actualizar el SVG
+                    updateZoom();
+                    break;
+            }
+        });
+        
+        // Prevenir que los clicks en el contenedor recarguen la página
+        document.getElementById('svgContainer').addEventListener('click', e => {
+            e.stopPropagation();
+        });
+        
+        // Prevenir que los clicks en el cuerpo recarguen la página
+        document.body.addEventListener('click', e => {
+            e.stopPropagation();
         });
     </script>
 </body>

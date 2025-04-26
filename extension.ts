@@ -31,7 +31,6 @@ const symbolMap = { ...defaultSymbolMap, ...userSymbolMap };
 export function activate(context: vscode.ExtensionContext) {
     console.log('Automaton Automator is now active!');
 
-    // Registrar el comando para mostrar la vista previa
     const showPreviewCommand = vscode.commands.registerCommand('automatonAutomator.showPreview', () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
@@ -39,7 +38,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Registrar el comando para copiar como PNG
     const copyAsPngCommand = vscode.commands.registerCommand('automatonAutomator.copyAsPng', async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
@@ -47,7 +45,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Registrar el comando para insertar símbolo
     const insertSymbolCommand = vscode.commands.registerCommand(
         'automatonAutomator.insertSymbol', 
         async () => {
@@ -77,10 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
 
-    // Auto-mostrar la previsualización cuando se abre un archivo .auto
     vscode.workspace.onDidOpenTextDocument(document => {
         if (isAutoFile(document)) {
-            // Pequeño retraso para asegurar que el editor esté listo
             setTimeout(() => {
                 const editor = vscode.window.activeTextEditor;
                 if (editor && editor.document === document) {
@@ -90,11 +85,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Cambio del documento activo
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor && isAutoFile(editor.document)) {
             applySymbolDecorations(editor);
-            // Si cambiamos a un editor con un archivo .auto, actualizamos la previsualización
             if (currentPanel) {
                 updatePreview(currentPanel, editor.document);
                 activeDocument = editor.document;
@@ -102,19 +95,16 @@ export function activate(context: vscode.ExtensionContext) {
                 showPreview(context, editor.document);
             }
         } else if (currentPanel && !editor) {
-            // Opcional: si queremos ocultar el panel cuando no hay editor activo
             currentPanel.dispose();
         }
     });
 
-    // Cambio del documento
     vscode.workspace.onDidChangeTextDocument(event => {
         const editor = vscode.window.activeTextEditor;
         if (editor && event.document === editor.document && isAutoFile(editor.document)) {
             applySymbolDecorations(editor);
         }
         if (isAutoFile(event.document) && currentPanel) {
-            // Si el documento activo cambia, actualizamos la previsualización
             if (activeDocument && event.document.uri.toString() === activeDocument.uri.toString()) {
                 updatePreview(currentPanel, event.document);
             }
@@ -127,7 +117,6 @@ export function activate(context: vscode.ExtensionContext) {
         insertSymbolCommand
     );
 
-    // Si hay un editor activo con un archivo .auto al activar la extensión, mostrar la previsualización
     if (vscode.window.activeTextEditor && isAutoFile(vscode.window.activeTextEditor.document)) {
         applySymbolDecorations(vscode.window.activeTextEditor);
         showPreview(context, vscode.window.activeTextEditor.document);
@@ -174,10 +163,8 @@ function applySymbolDecorations(editor: vscode.TextEditor) {
 }
 
 function preprocessDotCode(dotCode: string): string {
-    // Reemplazar todas las secuencias en el código
     let processedCode = dotCode;
     for (const [sequence, symbol] of Object.entries(symbolMap)) {
-        // Usamos una expresión regular para capturar la secuencia de escape
         const regex = new RegExp(sequence.replace(/\\/g, '\\\\'), 'g');
         processedCode = processedCode.replace(regex, symbol);
     }
@@ -190,7 +177,6 @@ function isAutoFile(document: vscode.TextDocument): boolean {
 }
 
 function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocument) {
-    // Si ya existe un panel, lo enfocamos y actualizamos
     if (currentPanel) {
         currentPanel.reveal(vscode.ViewColumn.Beside);
         updatePreview(currentPanel, document);
@@ -198,14 +184,11 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
         return;
     }
 
-    // Crear un nuevo panel de webview al lado del editor
     const panel = vscode.window.createWebviewPanel(
         'automatonAutomatorPreview',
         'Automaton Automator Preview',
         {
-            // Colocar explícitamente al lado del editor activo
             viewColumn: vscode.ViewColumn.Beside,
-            // Preservar el enfoque en el editor
             preserveFocus: true
         },
         {
@@ -220,13 +203,11 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
     updatePreview(panel, document);
     activeDocument = document;
 
-    // Registrar el cierre del panel
     panel.onDidDispose(() => {
         currentPanel = undefined;
         activeDocument = undefined;
     });
 
-    // Escuchar mensajes del webview
     panel.webview.onDidReceiveMessage(async message => {
         if (message.command === 'copyAsPng' && activeDocument) {
             await copyAsPng(activeDocument);
@@ -241,26 +222,33 @@ function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument
         const dotCode = document.getText();
         const processedDotCode = preprocessDotCode(dotCode);
         
-        // Convertir el código DOT a SVG usando Graphviz
         const svgContent = convertDotToSvg(processedDotCode);
         
-        panel.webview.html = getWebviewContent(svgContent);
+        const isPanelInitialized = panel.webview.html.includes('automaton-automator-initialized');
+        
+        if (isPanelInitialized) {
+            panel.webview.postMessage({
+                command: 'updateSvg',
+                svgContent: svgContent
+            });
+        } else {
+            panel.webview.html = getWebviewContent(svgContent);
+        }
+        
         panel.title = `Vista previa: ${path.basename(document.fileName)}`;
     } catch (error) {
-        panel.webview.html = getErrorWebviewContent(String(error));
+        panel.webview.html = panel.webview.html || getErrorWebviewContent(String(error));
     }
 }
 
 function convertDotToSvg(dotCode: string): string {
     try {
-        // Intentamos usar el comando dot de Graphviz para la conversión
         const result = execSync('dot -Tsvg', { 
             input: dotCode, 
             encoding: 'utf-8' 
         });
         return result;
     } catch (error) {
-        // Si falla, informamos al usuario que necesita instalar Graphviz
         throw new Error(`Error al generar SVG: ${error}.`);
     }
 }
@@ -270,25 +258,21 @@ async function copyAsPng(document: vscode.TextDocument) {
         const dotCode = document.getText();
         const processedDotCode = preprocessDotCode(dotCode);
         
-        // Crear un archivo temporal para el PNG (necesario para algunos métodos de portapapeles)
         const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
         if (!fs.existsSync(tmpDir)) {
             fs.mkdirSync(tmpDir, { recursive: true });
         }
         const pngFilePath = path.join(tmpDir, `automaton-${Date.now()}.png`);
         
-        // Generar el PNG usando Graphviz y guardarlo como archivo
         execSync(`dot -Tpng -o "${pngFilePath}"`, { 
             input: processedDotCode
         });
         
-        // Detectar sistema operativo
         const platform = process.platform;
         
         let success = false;
         
         if (platform === 'win32') {
-            // Windows: Usar PowerShell para copiar la imagen al portapapeles
             try {
                 const psScript = `
                     Add-Type -AssemblyName System.Windows.Forms
@@ -303,7 +287,6 @@ async function copyAsPng(document: vscode.TextDocument) {
             }
         } 
         else if (platform === 'darwin') {
-            // macOS: Usar osascript (AppleScript)
             try {
                 execSync(`osascript -e 'set the clipboard to (POSIX file "${pngFilePath}")'`);
                 success = true;
@@ -312,14 +295,11 @@ async function copyAsPng(document: vscode.TextDocument) {
             }
         } 
         else if (platform === 'linux') {
-            // Linux: Intentar usar xclip si está disponible
             try {
-                // Intentar con xclip (para X11)
                 execSync(`xclip -selection clipboard -t image/png -i "${pngFilePath}"`);
                 success = true;
             } catch (linuxError) {
                 try {
-                    // Intentar con wl-copy (para Wayland)
                     execSync(`wl-copy < "${pngFilePath}"`);
                     success = true;
                 } catch (waylandError) {
@@ -328,14 +308,12 @@ async function copyAsPng(document: vscode.TextDocument) {
             }
         }
         
-        // Si los métodos específicos del sistema funcionaron
         const DeleteBtn = 'Eliminar archivo temporal';
         if (success) {
             vscode.window.showInformationMessage('Autómata copiado como imagen PNG al portapapeles.',
                 DeleteBtn
             ).then(selection => {
                 if (selection === DeleteBtn) {
-                    // Eliminar archivo temporal
                     try {
                         fs.unlinkSync(pngFilePath);
                     } catch (cleanupError) {
@@ -344,7 +322,6 @@ async function copyAsPng(document: vscode.TextDocument) {
                 }
             });
         } else {
-            // Método de respaldo: Copiar como HTML+base64 (el método original)
             const pngBuffer = fs.readFileSync(pngFilePath);
             const pngBase64 = pngBuffer.toString('base64');
             const htmlContent = `<img src="data:image/png;base64,${pngBase64}" alt="Automaton Graph" />`;
@@ -353,7 +330,6 @@ async function copyAsPng(document: vscode.TextDocument) {
                 DeleteBtn
             ).then(selection => {
                 if (selection === DeleteBtn) {
-                    // Eliminar archivo temporal
                     try {
                         fs.unlinkSync(pngFilePath);
                     } catch (cleanupError) {
@@ -370,7 +346,7 @@ async function copyAsPng(document: vscode.TextDocument) {
 
 function getWebviewContent(svgContent: string): string {
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="automaton-automator-initialized">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -409,7 +385,7 @@ function getWebviewContent(svgContent: string): string {
 </head>
 <body>
     <div class="controls">
-        <button onclick="copy()">Copiar como PNG</button>
+        <button id="copyBtn">Copiar como PNG</button>
         <button id="zoomInBtn">Zoom +</button>
         <button id="zoomOutBtn">Zoom -</button>
         <button id="resetZoomBtn">Reset Zoom</button>
@@ -420,36 +396,38 @@ function getWebviewContent(svgContent: string): string {
     <script>
         const vscode = acquireVsCodeApi();
         let scale = 1;
-
-        function copy () {
-            vscode.postMessage({
-                command: 'copyAsPng'
-            });
-        }
+        
+        const currentState = vscode.getState() || { scale: 1 };
+        scale = currentState.scale;
+        
+        updateZoom();
         
         document.getElementById('copyBtn').addEventListener('click', (e) => {
-            e.preventDefault(); // Prevenir comportamiento por defecto
+            e.preventDefault();
             vscode.postMessage({
                 command: 'copyAsPng'
             });
         });
         
         document.getElementById('zoomInBtn').addEventListener('click', (e) => {
-            e.preventDefault(); // Prevenir comportamiento por defecto
+            e.preventDefault();
             scale += 0.1;
             updateZoom();
+            saveState();
         });
         
         document.getElementById('zoomOutBtn').addEventListener('click', (e) => {
-            e.preventDefault(); // Prevenir comportamiento por defecto
+            e.preventDefault();
             scale = Math.max(0.1, scale - 0.1);
             updateZoom();
+            saveState();
         });
         
         document.getElementById('resetZoomBtn').addEventListener('click', (e) => {
-            e.preventDefault(); // Prevenir comportamiento por defecto
+            e.preventDefault();
             scale = 1;
             updateZoom();
+            saveState();
         });
         
         function updateZoom() {
@@ -460,26 +438,27 @@ function getWebviewContent(svgContent: string): string {
             }
         }
         
-        // Guardar y restaurar el estado de zoom
-        // Intentar restaurar el estado anterior
-        const state = vscode.getState();
-        if (state && state.scale) {
-            scale = state.scale;
-            // Aplicar zoom después de que el DOM esté completamente cargado
-            document.addEventListener('DOMContentLoaded', () => {
-                updateZoom();
-            });
-        }
-        
-        // Función para guardar el estado actual
         function saveState() {
             vscode.setState({ scale: scale });
         }
         
-        // Guardar estado después de cada cambio de zoom
-        const zoomButtons = ['zoomInBtn', 'zoomOutBtn', 'resetZoomBtn'];
-        zoomButtons.forEach(id => {
-            document.getElementById(id).addEventListener('click', saveState);
+        window.addEventListener('message', event => {
+            const message = event.data;
+            
+            switch (message.command) {
+                case 'updateSvg':
+                    document.getElementById('svgContainer').innerHTML = message.svgContent;
+                    updateZoom();
+                    break;
+            }
+        });
+        
+        document.getElementById('svgContainer').addEventListener('click', e => {
+            e.stopPropagation();
+        });
+        
+        document.body.addEventListener('click', e => {
+            e.stopPropagation();
         });
     </script>
 </body>
