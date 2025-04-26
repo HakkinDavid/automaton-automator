@@ -28,6 +28,8 @@ const defaultSymbolMap: Record<string, string> = {
 // Definir mapeo de secuencias de escape a símbolos matemáticos
 const symbolMap = { ...defaultSymbolMap, ...userSymbolMap };
 
+let tempFiles: string[] = [];
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('Automaton Automator is now active!');
 
@@ -263,6 +265,8 @@ async function copyAsPng(document: vscode.TextDocument) {
             fs.mkdirSync(tmpDir, { recursive: true });
         }
         const pngFilePath = path.join(tmpDir, `automaton-${Date.now()}.png`);
+
+        tempFiles.push(pngFilePath);
         
         execSync(`dot -Tpng -o "${pngFilePath}"`, { 
             input: processedDotCode
@@ -310,33 +314,13 @@ async function copyAsPng(document: vscode.TextDocument) {
         
         const DeleteBtn = 'Delete temporary file';
         if (success) {
-            vscode.window.showInformationMessage('Automaton copied as PNG to the clipboard.',
-                DeleteBtn
-            ).then(selection => {
-                if (selection === DeleteBtn) {
-                    try {
-                        fs.unlinkSync(pngFilePath);
-                    } catch (cleanupError) {
-                        console.error('Error when deleting temporary file:', cleanupError);
-                    }
-                }
-            });
+            vscode.window.showInformationMessage('Automaton copied as PNG to the clipboard.');
         } else {
             const pngBuffer = fs.readFileSync(pngFilePath);
             const pngBase64 = pngBuffer.toString('base64');
             const htmlContent = `<img src="data:image/png;base64,${pngBase64}" alt="Automaton Graph" />`;
             await vscode.env.clipboard.writeText(htmlContent);
-            vscode.window.showInformationMessage('Automaton copied as HTML image to the clipboard.',
-                DeleteBtn
-            ).then(selection => {
-                if (selection === DeleteBtn) {
-                    try {
-                        fs.unlinkSync(pngFilePath);
-                    } catch (cleanupError) {
-                        console.error('Error when deleting temporary file:', cleanupError);
-                    }
-                }
-            });
+            vscode.window.showInformationMessage('Automaton copied as HTML image to the clipboard.');
         }
         
     } catch (error) {
@@ -499,4 +483,7 @@ export function deactivate() {
         symbolDecorationType.dispose();
         symbolDecorationType = undefined;
     }
+    tempFiles.forEach((v) => {
+        fs.unlinkSync(v);
+    });
 }

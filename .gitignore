@@ -129,3 +129,6 @@ dist
 .yarn/install-state.gz
 .pnp.*
 *.vsix
+extension.js
+extension.js.map
+.DS_Store
