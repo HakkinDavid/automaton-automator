@@ -1,13 +1,9 @@
 {
   "name": "automaton-automator",
-  "author": {
-    "name": "HakkinDavid",
-    "email": "desr11@hotmail.com",
-    "url": "https://github.com/HakkinDavid"
-  },
+  "publisher": "HakkinDavid",
   "repository": {
     "url": "https://github.com/HakkinDavid/automaton-automator",
-    "type": "github"
+    "type": "git"
   },
   "displayName": "Automaton Automator",
   "description": "Automaton editor with real time preview. Requires Graphviz.",
