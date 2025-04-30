@@ -22,7 +22,9 @@ const defaultSymbolMap: Record<string, string> = {
     '\\cap': '∩',
     '\\sigma': 'Σ',
     '\\emptyset': '∅',
-    '\\empty': '∅'
+    '\\empty': '∅',
+    '\\space': ' ',
+    '\\tab': '\t'
 };
 
 // Definir mapeo de secuencias de escape a símbolos matemáticos
@@ -170,6 +172,8 @@ function preprocessDotCode(dotCode: string): string {
         const regex = new RegExp(sequence.replace(/\\/g, '\\\\'), 'g');
         processedCode = processedCode.replace(regex, symbol);
     }
+
+    processedCode = processedCode.replace(/^[\t ]+/gm, ''); // Permite que el usuario utilice indentación pero la elimina del código DOT final, ya que Graphviz lo graficaría
     
     return processedCode;
 }
