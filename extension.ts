@@ -342,6 +342,9 @@ function getWebviewContent(svgContent: string): string {
             align-items: center;
             padding: 20px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            /* Prevenir selección para evitar que VSCode interprete los clics como selección */
+            user-select: none;
+            -webkit-user-select: none;
         }
         .controls {
             margin-bottom: 20px;
@@ -388,30 +391,38 @@ function getWebviewContent(svgContent: string): string {
         
         document.getElementById('copyBtn').addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             vscode.postMessage({
                 command: 'copyAsPng'
             });
+            return false;
         });
         
         document.getElementById('zoomInBtn').addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             scale += 0.1;
             updateZoom();
             saveState();
+            return false;
         });
         
         document.getElementById('zoomOutBtn').addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             scale = Math.max(0.1, scale - 0.1);
             updateZoom();
             saveState();
+            return false;
         });
         
         document.getElementById('resetZoomBtn').addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             scale = 1;
             updateZoom();
             saveState();
+            return false;
         });
         
         function updateZoom() {
@@ -437,13 +448,26 @@ function getWebviewContent(svgContent: string): string {
             }
         });
         
-        document.getElementById('svgContainer').addEventListener('click', e => {
+        // Prevenir comportamiento predeterminado y propagación para todos los eventos de clic
+        document.addEventListener('click', function(e) {
+            e.preventDefault();
             e.stopPropagation();
-        });
+            return false;
+        }, true);
         
-        document.body.addEventListener('click', e => {
+        // Prevenir comportamiento predeterminado para eventos de mousedown
+        document.addEventListener('mousedown', function(e) {
+            e.preventDefault();
             e.stopPropagation();
-        });
+            return false;
+        }, true);
+        
+        // Prevenir doble clic que podría causar selección de texto
+        document.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, true);
     </script>
 </body>
 </html>`;
@@ -461,6 +485,9 @@ function getErrorWebviewContent(errorMessage: string): string {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             padding: 20px;
             color: #d32f2f;
+            /* Prevenir selección para evitar que VSCode interprete los clics como selección */
+            user-select: none;
+            -webkit-user-select: none;
         }
         pre {
             background-color: #f5f5f5;
@@ -474,6 +501,21 @@ function getErrorWebviewContent(errorMessage: string): string {
     <h2>Couldn't generate your automaton</h2>
     <pre>${errorMessage}</pre>
     <p>Make sure to have Graphviz and DOT installed and in your PATH.</p>
+    <script>
+        // Prevenir comportamiento predeterminado y propagación para todos los eventos de clic
+        document.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, true);
+        
+        // Prevenir comportamiento predeterminado para eventos de mousedown
+        document.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, true);
+    </script>
 </body>
 </html>`;
 }
