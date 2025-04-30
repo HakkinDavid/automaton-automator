@@ -372,10 +372,10 @@ function getWebviewContent(svgContent: string): string {
 </head>
 <body>
     <div class="controls">
-        <button id="copyBtn">Copy as PNG</button>
-        <button id="zoomInBtn">Zoom +</button>
-        <button id="zoomOutBtn">Zoom -</button>
-        <button id="resetZoomBtn">Reset Zoom</button>
+        <button id="copyBtn" type="button">Copy as PNG</button>
+        <button id="zoomInBtn" type="button">Zoom +</button>
+        <button id="zoomOutBtn" type="button">Zoom -</button>
+        <button id="resetZoomBtn" type="button">Reset Zoom</button>
     </div>
     <div class="svg-container" id="svgContainer">
         ${svgContent}
@@ -448,14 +448,23 @@ function getWebviewContent(svgContent: string): string {
             }
         });
         
-        // Prevenir comportamiento predeterminado y propagación para todos los eventos de clic
+        // Manejar eventos de clic selectivamente
         document.addEventListener('click', function(e) {
+            // Permitir que los botones funcionen normalmente
+            if (e.target && (
+                e.target.tagName === 'BUTTON' || 
+                e.target.closest('button')
+            )) {
+                return true;
+            }
+            
+            // Para cualquier otro elemento, prevenir comportamiento predeterminado
             e.preventDefault();
             e.stopPropagation();
             return false;
         }, true);
         
-        // Prevenir comportamiento predeterminado para eventos de mousedown
+        // Manejar eventos de mousedown selectivamente
         document.addEventListener('mousedown', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -502,15 +511,33 @@ function getErrorWebviewContent(errorMessage: string): string {
     <pre>${errorMessage}</pre>
     <p>Make sure to have Graphviz and DOT installed and in your PATH.</p>
     <script>
-        // Prevenir comportamiento predeterminado y propagación para todos los eventos de clic
+        // Manejar eventos de clic selectivamente
         document.addEventListener('click', function(e) {
+            // Permitir que los botones funcionen normalmente
+            if (e.target && (
+                e.target.tagName === 'BUTTON' || 
+                e.target.closest('button')
+            )) {
+                return true;
+            }
+            
+            // Para cualquier otro elemento, prevenir comportamiento predeterminado
             e.preventDefault();
             e.stopPropagation();
             return false;
         }, true);
         
-        // Prevenir comportamiento predeterminado para eventos de mousedown
+        // Manejar eventos de mousedown selectivamente
         document.addEventListener('mousedown', function(e) {
+            // Permitir que los botones funcionen normalmente
+            if (e.target && (
+                e.target.tagName === 'BUTTON' || 
+                e.target.closest('button')
+            )) {
+                return true;
+            }
+            
+            // Para cualquier otro elemento, prevenir comportamiento predeterminado
             e.preventDefault();
             e.stopPropagation();
             return false;
