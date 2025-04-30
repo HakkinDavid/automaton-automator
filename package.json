@@ -8,7 +8,7 @@
   },
   "displayName": "Automaton Automator",
   "description": "Automaton editor with real time preview. Requires Graphviz.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -68,12 +68,17 @@
     "configuration": {
         "title": "Automaton Automator",
         "properties": {
+            "automatonAutomator.symbolDecorations": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether or not to have escape sequences be replaced in your live editor. This may harm performance on large documents."
+            },
             "automatonAutomator.symbolMappings": {
                 "type": "object",
                 "default": {
                   "\\times": "×"
                 },
-                "description": "Escape sequences to be used within your automata files"
+                "description": "Escape sequences to be used within your automata files."
             }
         }
     }

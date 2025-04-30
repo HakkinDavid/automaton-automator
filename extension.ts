@@ -30,6 +30,8 @@ const defaultSymbolMap: Record<string, string> = {
 // Definir mapeo de secuencias de escape a símbolos matemáticos
 const symbolMap = { ...defaultSymbolMap, ...userSymbolMap };
 
+const symbolDecorationsEnabled = config.get<Boolean>('symbolDecorations');
+
 let tempFiles: string[] = [];
 
 export function activate(context: vscode.ExtensionContext) {
@@ -129,41 +131,49 @@ export function activate(context: vscode.ExtensionContext) {
 
 // Utiliza decoradores de texto en VS Code para mostrar los símbolos
 function applySymbolDecorations(editor: vscode.TextEditor) {
-    /*
+    if (!symbolDecorationsEnabled) {
+        return;
+    }
     if (symbolDecorationType) {
         symbolDecorationType.dispose();
     }
 
     symbolDecorationType = vscode.window.createTextEditorDecorationType({
-        after: {
-            margin: '0 0 0 3px',
-            color: '#999999'
-        }
+        textDecoration: 'none; display: none;'
     });
-    
+
     const decorations: vscode.DecorationOptions[] = [];
     const text = editor.document.getText();
-    
-    for (const [sequence, symbol] of Object.entries(symbolMap)) {
-        const regex = new RegExp(sequence.replace(/\\/g, '\\\\'), 'g');
-        let match;
+
+    // Convertir claves del symbolMap a su forma textual escapada literal
+    const escapeToVisible = Object.entries(symbolMap).map(([logicalKey, symbol]) => {
+        // El documento contiene \\epsilon, por lo que hay que convertir \epsilon -> \\epsilon
+        const rawTextKey = logicalKey.replace(/\\/g, '\\\\');
+        return { rawTextKey, symbol };
+    });
+
+    for (const { rawTextKey, symbol } of escapeToVisible) {
+        const regex = new RegExp(rawTextKey.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+
+        let match: RegExpExecArray | null;
         while ((match = regex.exec(text)) !== null) {
             const startPos = editor.document.positionAt(match.index);
             const endPos = editor.document.positionAt(match.index + match[0].length);
-            
+
             decorations.push({
                 range: new vscode.Range(startPos, endPos),
                 renderOptions: {
-                    after: {
-                        contentText: ` (${symbol})`,
+                    before: {
+                        contentText: symbol,
+                        color: '#f0a800',
+                        margin: '0 0 0 0',
                     }
                 }
             });
         }
     }
-    
+
     editor.setDecorations(symbolDecorationType, decorations);
-    */
 }
 
 function preprocessDotCode(dotCode: string): string {
