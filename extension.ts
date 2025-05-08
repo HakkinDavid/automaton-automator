@@ -24,7 +24,17 @@ const defaultSymbolMap: Record<string, string> = {
     '\\emptyset': '∅',
     '\\empty': '∅',
     '\\space': ' ',
-    '\\tab': '\t'
+    '\\tab': '\t',
+    "_1": "₁",
+    "_2": "₂",
+    "_3": "₃",
+    "_4": "₄",
+    "_5": "₅",
+    "_6": "₆",
+    "_7": "₇",
+    "_8": "₈",
+    "_9": "₉",
+    "_0": "₀"
 };
 
 // Definir mapeo de secuencias de escape a símbolos matemáticos
