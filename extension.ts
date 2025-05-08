@@ -42,6 +42,8 @@ const symbolMap = { ...defaultSymbolMap, ...userSymbolMap };
 
 const symbolDecorationsEnabled = config.get<Boolean>('symbolDecorations');
 
+const renderDPI = config.get<Number>('renderDPI') ?? 0;
+
 let tempFiles: string[] = [];
 
 export function activate(context: vscode.ExtensionContext) {
@@ -292,7 +294,8 @@ async function copyAsPng(document: vscode.TextDocument) {
 
         tempFiles.push(pngFilePath);
         
-        execSync(`dot -Tpng -o "${pngFilePath}"`, { 
+        const dpiOption = renderDPI ? ` -Gdpi=${renderDPI}` : '';
+        execSync(`dot -Tpng${dpiOption} -o "${pngFilePath}"`, {
             input: processedDotCode
         });
         

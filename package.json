@@ -8,7 +8,7 @@
   },
   "displayName": "Automaton Automator",
   "description": "Automaton editor with real time preview. Requires Graphviz.",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -79,6 +79,11 @@
                   "\\times": "×"
                 },
                 "description": "Escape sequences to be used within your automata files."
+            },
+            "automatonAutomator.renderDPI": {
+                "type":"integer",
+                "default": 300,
+                "description": "Quality of the images rendered by the extension."
             }
         }
     }
