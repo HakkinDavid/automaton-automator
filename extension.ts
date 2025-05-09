@@ -23,7 +23,7 @@ const defaultSymbolMap: Record<string, string> = {
     '\\sigma': 'Σ',
     '\\emptyset': '∅',
     '\\empty': '∅',
-    '\\space': ' ',
+    '\\space': '⊔',
     '\\tab': '\t',
     "_1": "₁",
     "_2": "₂",
@@ -72,7 +72,8 @@ export function activate(context: vscode.ExtensionContext) {
                 { label: '∪ (unión)', value: '∪' },
                 { label: '∩ (intersección)', value: '∩' },
                 { label: 'Σ (sigma)', value: 'Σ' },
-                { label: '∅ (conjunto vacío)', value: '∅' }
+                { label: '∅ (conjunto vacío)', value: '∅' },
+                { label: '⊔ (espacio)', value: '⊔'}
             ];
             
             const selected = await vscode.window.showQuickPick(
