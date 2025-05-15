@@ -8,7 +8,7 @@
   },
   "displayName": "Automaton Automator",
   "description": "Automaton editor with real time preview. Requires Graphviz.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -84,6 +84,11 @@
                 "type":"integer",
                 "default": 300,
                 "description": "Quality of the images rendered by the extension."
+            },
+            "automatonAutomator.renderBufferMB": {
+                "type":"integer",
+                "default": 10,
+                "description": "Max buffer size in MB for SVGs rendered by the extension."
             }
         }
     }

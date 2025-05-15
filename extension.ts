@@ -44,6 +44,8 @@ const symbolDecorationsEnabled = config.get<Boolean>('symbolDecorations');
 
 const renderDPI = config.get<Number>('renderDPI') ?? 0;
 
+const renderBufferMB = config.get<Number>('renderBufferMB')?.valueOf() ?? 10;
+
 let tempFiles: string[] = [];
 
 export function activate(context: vscode.ExtensionContext) {
@@ -274,7 +276,8 @@ function convertDotToSvg(dotCode: string): string {
     try {
         const result = execSync('dot -Tsvg', { 
             input: dotCode, 
-            encoding: 'utf-8' 
+            encoding: 'utf-8',
+            maxBuffer: renderBufferMB * 1024 * 1024
         });
         return result;
     } catch (error) {
