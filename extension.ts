@@ -321,12 +321,13 @@ async function copyAs(document: vscode.TextDocument, format: string = 'png') {
         if (platform === 'win32') {
             try {
                 const psScript = `
-                    Add-Type -AssemblyName System.Windows.Forms
-                    $img = [System.Drawing.Image]::FromFile('${imageFilePath.replace(/\\/g, '\\\\')}')
-                    [System.Windows.Forms.Clipboard]::SetImage($img)
-                    $img.Dispose()
-                `;
-                execSync(`powershell -command "${psScript}"`, { windowsHide: true });
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$img = [System.Drawing.Image]::FromFile('${imageFilePath.replace(/'/g, "''")}')
+[System.Windows.Forms.Clipboard]::SetImage($img)
+$img.Dispose()
+`;
+                execSync(`powershell -NoProfile -STA -Command "${psScript}"`, { windowsHide: true });
                 success = true;
             } catch (winError) {
                 console.error('Error when copying with PowerShell:', winError);
@@ -354,15 +355,18 @@ async function copyAs(document: vscode.TextDocument, format: string = 'png') {
             }
         }
         
-        const DeleteBtn = 'Delete temporary file';
         if (success) {
             vscode.window.showInformationMessage(`Automaton copied as ${format.toUpperCase()} to the clipboard.`);
         } else {
-            const pngBuffer = fs.readFileSync(imageFilePath);
-            const pngBase64 = pngBuffer.toString('base64');
-            const htmlContent = `<img src="data:image/png;base64,${pngBase64}" alt="Automaton Graph" />`;
-            await vscode.env.clipboard.writeText(htmlContent);
-            vscode.window.showInformationMessage('Automaton copied as HTML image to the clipboard.');
+            const openOption = 'Mostrar imagen en carpeta';
+            const choice = await vscode.window.showInformationMessage(
+                'No se pudo copiar la imagen al portapapeles. Puedes abrir la carpeta que contiene el archivo generado.',
+                openOption
+            );
+            if (choice === openOption) {
+                const revealUri = vscode.Uri.file(imageFilePath);
+                vscode.commands.executeCommand('revealFileInOS', revealUri);
+            }
         }
         
     } catch (error) {
