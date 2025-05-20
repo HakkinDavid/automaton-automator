@@ -61,7 +61,14 @@ export function activate(context: vscode.ExtensionContext) {
     const copyAsPngCommand = vscode.commands.registerCommand('automatonAutomator.copyAsPng', async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
-            await copyAsPng(editor.document);
+            await copyAs(editor.document, 'png');
+        }
+    });
+
+    const copyAsSvgCommand = vscode.commands.registerCommand('automatonAutomator.copyAsSvg', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor && isAutoFile(editor.document)) {
+            await copyAs(editor.document, 'svg');
         }
     });
 
@@ -135,6 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         showPreviewCommand,
         copyAsPngCommand,
+        copyAsSvgCommand,
         insertSymbolCommand
     );
 
@@ -241,7 +249,10 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
 
     panel.webview.onDidReceiveMessage(async message => {
         if (message.command === 'copyAsPng' && activeDocument) {
-            await copyAsPng(activeDocument);
+            await copyAs(activeDocument, 'png');
+        }
+        else if (message.command === 'copyAsSvg' && activeDocument) {
+            await copyAs(activeDocument, 'svg');
         }
     });
 
@@ -285,7 +296,7 @@ function convertDotToSvg(dotCode: string): string {
     }
 }
 
-async function copyAsPng(document: vscode.TextDocument) {
+async function copyAs(document: vscode.TextDocument, format: string = 'png') {
     try {
         const dotCode = document.getText();
         const processedDotCode = preprocessDotCode(dotCode);
@@ -294,12 +305,12 @@ async function copyAsPng(document: vscode.TextDocument) {
         if (!fs.existsSync(tmpDir)) {
             fs.mkdirSync(tmpDir, { recursive: true });
         }
-        const pngFilePath = path.join(tmpDir, `automaton-${Date.now()}.png`);
+        const imageFilePath = path.join(tmpDir, `automaton-${Date.now()}.${format}`);
 
-        tempFiles.push(pngFilePath);
+        tempFiles.push(imageFilePath);
         
-        const dpiOption = renderDPI ? ` -Gdpi=${renderDPI}` : '';
-        execSync(`dot -Tpng${dpiOption} -o "${pngFilePath}"`, {
+        const dpiOption = renderDPI && format !== 'svg' ? ` -Gdpi=${renderDPI}` : '';
+        execSync(`dot -T${format + dpiOption} -o "${imageFilePath}"`, {
             input: processedDotCode
         });
         
@@ -311,7 +322,7 @@ async function copyAsPng(document: vscode.TextDocument) {
             try {
                 const psScript = `
                     Add-Type -AssemblyName System.Windows.Forms
-                    $img = [System.Drawing.Image]::FromFile('${pngFilePath.replace(/\\/g, '\\\\')}')
+                    $img = [System.Drawing.Image]::FromFile('${imageFilePath.replace(/\\/g, '\\\\')}')
                     [System.Windows.Forms.Clipboard]::SetImage($img)
                     $img.Dispose()
                 `;
@@ -323,7 +334,7 @@ async function copyAsPng(document: vscode.TextDocument) {
         } 
         else if (platform === 'darwin') {
             try {
-                execSync(`osascript -e 'set the clipboard to (POSIX file "${pngFilePath}")'`);
+                execSync(`osascript -e 'set the clipboard to (POSIX file "${imageFilePath}")'`);
                 success = true;
             } catch (macError) {
                 console.error('Error when copying with osascript:', macError);
@@ -331,11 +342,11 @@ async function copyAsPng(document: vscode.TextDocument) {
         } 
         else if (platform === 'linux') {
             try {
-                execSync(`xclip -selection clipboard -t image/png -i "${pngFilePath}"`);
+                execSync(`xclip -selection clipboard -t image/png -i "${imageFilePath}"`);
                 success = true;
             } catch (linuxError) {
                 try {
-                    execSync(`wl-copy < "${pngFilePath}"`);
+                    execSync(`wl-copy < "${imageFilePath}"`);
                     success = true;
                 } catch (waylandError) {
                     console.error('Error when copying with xclip/wl-copy:', linuxError, waylandError);
@@ -345,9 +356,9 @@ async function copyAsPng(document: vscode.TextDocument) {
         
         const DeleteBtn = 'Delete temporary file';
         if (success) {
-            vscode.window.showInformationMessage('Automaton copied as PNG to the clipboard.');
+            vscode.window.showInformationMessage(`Automaton copied as ${format.toUpperCase()} to the clipboard.`);
         } else {
-            const pngBuffer = fs.readFileSync(pngFilePath);
+            const pngBuffer = fs.readFileSync(imageFilePath);
             const pngBase64 = pngBuffer.toString('base64');
             const htmlContent = `<img src="data:image/png;base64,${pngBase64}" alt="Automaton Graph" />`;
             await vscode.env.clipboard.writeText(htmlContent);
@@ -404,6 +415,7 @@ function getWebviewContent(svgContent: string): string {
 <body>
     <div class="controls">
         <button id="copyBtn" type="button">Copy as PNG</button>
+        <button id="copySvgBtn" type="button">Copy as SVG</button>
         <button id="zoomInBtn" type="button">Zoom +</button>
         <button id="zoomOutBtn" type="button">Zoom -</button>
         <button id="resetZoomBtn" type="button">Reset Zoom</button>
@@ -425,6 +437,15 @@ function getWebviewContent(svgContent: string): string {
             e.stopPropagation();
             vscode.postMessage({
                 command: 'copyAsPng'
+            });
+            return false;
+        });
+
+        document.getElementById('copySvgBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            vscode.postMessage({
+                command: 'copyAsSvg'
             });
             return false;
         });

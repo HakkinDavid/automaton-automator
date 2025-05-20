@@ -42,3 +42,5 @@ digraph pda {
   q4 -> q1 [label="0,$\\to\\epsilon"]
 }
 ```
+
+![Example](automaton-1747737097737.png)
