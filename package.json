@@ -8,7 +8,7 @@
   },
   "displayName": "Automaton Automator",
   "description": "Automaton editor with real time preview. Now supports experimental program flowcharting for C, COBOL and pseudocode.",
-  "version": "0.2.5",
+  "version": "1.5.0",
   "engines": {
     "vscode": "^1.60.0"
   },

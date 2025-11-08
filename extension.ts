@@ -8,9 +8,9 @@ function convertToDot(document: vscode.TextDocument, context: vscode.ExtensionCo
     const fileName = document.fileName;
     const ext = path.extname(fileName).toLowerCase();
     let language: string | null = null;
-    if (ext === '.c') {
+    if (ext === '.c' || document.languageId.toLowerCase() == "c") {
         language = 'c';
-    } else if (ext === '.cbl' || ext === '.cobol') {
+    } else if (ext === '.cbl' || ext === '.cobol' || document.languageId.toLowerCase() == "cobol") {
         language = 'cobol';
     } else if (ext === '.pse' || ext === '.pseudo') {
         language = 'pseudo';
@@ -52,6 +52,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
+
+// Variable global para la ruta del ejecutable dot
+let dotExecutablePath: string;
 
 let currentPanel: vscode.WebviewPanel | undefined;
 let activeDocument: vscode.TextDocument | undefined;
@@ -102,6 +105,7 @@ let tempFiles: string[] = [];
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Automaton Automator is now active!');
+    dotExecutablePath = resolveDotExecutable(context);
 
     const showPreviewCommand = vscode.commands.registerCommand('automatonAutomator.showPreview', () => {
         const editor = vscode.window.activeTextEditor;
@@ -113,14 +117,14 @@ export function activate(context: vscode.ExtensionContext) {
     const copyAsPngCommand = vscode.commands.registerCommand('automatonAutomator.copyAsPng', async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
-            await copyAs(editor.document, 'png');
+            await copyAs(editor.document, context, 'png');
         }
     });
 
     const copyAsSvgCommand = vscode.commands.registerCommand('automatonAutomator.copyAsSvg', async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
-            await copyAs(editor.document, 'svg');
+            await copyAs(editor.document, context, 'svg');
         }
     });
 
@@ -304,10 +308,10 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
 
     panel.webview.onDidReceiveMessage(async message => {
         if (message.command === 'copyAsPng' && activeDocument) {
-            await copyAs(activeDocument, 'png');
+            await copyAs(activeDocument, context, 'png');
         }
         else if (message.command === 'copyAsSvg' && activeDocument) {
-            await copyAs(activeDocument, 'svg');
+            await copyAs(activeDocument, context, 'svg');
         }
     });
 
@@ -319,7 +323,7 @@ function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument
         // Usar convertToDot para obtener el código DOT (o el código original si no requiere conversión)
         const dotCode = convertToDot(document, context);
         const processedDotCode = preprocessDotCode(dotCode);
-        const svgContent = convertDotToSvg(processedDotCode);
+        const svgContent = convertDotToSvg(processedDotCode, context);
         const isPanelInitialized = panel.webview.html.includes('automaton-automator-initialized');
         if (isPanelInitialized) {
             panel.webview.postMessage({
@@ -335,10 +339,23 @@ function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument
     }
 }
 
-function convertDotToSvg(dotCode: string): string {
+function resolveDotExecutable(context: vscode.ExtensionContext): string {
+    const binPath = path.join(context.extensionPath, 'resources', 'bin');
+    const dotWindows = path.join(binPath, 'dot.exe');
+    const dotUnix = path.join(binPath, 'dot');
+    if (process.platform === 'win32' && fs.existsSync(dotWindows)) {
+        return `"${dotWindows}"`;
+    } else if (fs.existsSync(dotUnix)) {
+        return `"${dotUnix}"`;
+    } else {
+        return 'dot'; // fallback al sistema
+    }
+}
+
+function convertDotToSvg(dotCode: string, context: vscode.ExtensionContext): string {
     try {
-        const result = execSync('dot -Tsvg', { 
-            input: dotCode, 
+        const result = execSync(`${dotExecutablePath} -Tsvg`, {
+            input: dotCode,
             encoding: 'utf-8',
             maxBuffer: renderBufferMB * 1024 * 1024
         });
@@ -348,9 +365,9 @@ function convertDotToSvg(dotCode: string): string {
     }
 }
 
-async function copyAs(document: vscode.TextDocument, format: string = 'png') {
+async function copyAs(document: vscode.TextDocument, context: vscode.ExtensionContext, format: string = 'png') {
     try {
-        const dotCode = document.getText();
+        const dotCode = convertToDot(document, context);
         const processedDotCode = preprocessDotCode(dotCode);
         
         const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
