@@ -92,6 +92,8 @@ const symbolMap = { ...defaultSymbolMap, ...userSymbolMap };
 
 const symbolDecorationsEnabled = config.get<Boolean>('symbolDecorations');
 
+const enableProgramChartDesigner = config.get<Boolean>('enableProgramChartDesigner');
+
 const renderDPI = config.get<Number>('renderDPI') ?? 0;
 
 const renderBufferMB = config.get<Number>('renderBufferMB')?.valueOf() ?? 10;
@@ -262,9 +264,9 @@ function preprocessDotCode(dotCode: string): string {
 }
 
 function isAutoFile(document: vscode.TextDocument): boolean {
-    const supportedExtensions = ['.auto', '.dot', '.c', '.cbl', '.cobol', '.pse', '.pseudo'];
+    const supportedExtensions = ['.auto', '.dot'].concat(enableProgramChartDesigner ? ['.c', '.cbl', '.cobol', '.pse', '.pseudo'] : []);
     const ext = path.extname(document.fileName).toLowerCase();
-    const supportedLanguages = ['dot', 'c', 'cobol', 'pseudo'];
+    const supportedLanguages = ['dot'].concat(enableProgramChartDesigner ? ['c', 'cobol', 'pseudo'] : []);
     return supportedExtensions.includes(ext) || supportedLanguages.includes(document.languageId);
 }
 

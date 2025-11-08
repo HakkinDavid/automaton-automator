@@ -7,7 +7,7 @@
     "type": "git"
   },
   "displayName": "Automaton Automator",
-  "description": "Automaton editor with real time preview. Requires Graphviz.",
+  "description": "Automaton editor with real time preview. Now supports experimental program flowcharting for C, COBOL and pseudocode.",
   "version": "0.2.5",
   "engines": {
     "vscode": "^1.60.0"
@@ -91,6 +91,11 @@
               "default": true,
               "description": "Whether or not to have escape sequences be replaced in your live editor. This may harm performance on large documents."
             },
+            "automatonAutomator.enableProgramChartDesigner": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether or not to render flowcharts for supported programming languages (C, Cobol, Pseudocode)."
+              },
             "automatonAutomator.symbolMappings": {
                 "type": "object",
                 "default": {
