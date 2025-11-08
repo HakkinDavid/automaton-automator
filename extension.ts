@@ -1,3 +1,53 @@
+/**
+ * Convierte el documento actual a código DOT usando el runner Java si es necesario.
+ * @param document Documento de VSCode a procesar
+ * @param context Contexto de la extensión
+ * @returns Código DOT generado
+ */
+function convertToDot(document: vscode.TextDocument, context: vscode.ExtensionContext): string {
+    const fileName = document.fileName;
+    const ext = path.extname(fileName).toLowerCase();
+    let language: string | null = null;
+    if (ext === '.c') {
+        language = 'c';
+    } else if (ext === '.cbl' || ext === '.cobol') {
+        language = 'cobol';
+    } else if (ext === '.pse' || ext === '.pseudo') {
+        language = 'pseudo';
+    }
+
+    // Si no coincide con ninguna extensión soportada, retornar el contenido como DOT
+    if (!language) {
+        return document.getText();
+    }
+
+    // Crear archivo temporal con el contenido del documento
+    const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
+    if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    const tempFile = path.join(tmpDir, `automaton-tmp-${Date.now()}${ext}`);
+    fs.writeFileSync(tempFile, document.getText(), { encoding: 'utf8' });
+    tempFiles.push(tempFile);
+
+    // Construir classpath para el runner Java
+    const classpath = context.asAbsolutePath('resources/lib/*');
+
+    // Ejecutar el runner Java
+    try {
+        const cmd = `java -cp "${classpath}" ProgramChartDesigner.App.Runner ${language} "${tempFile}" --stdout`;
+        const result = execSync(cmd, {
+            encoding: 'utf-8',
+            maxBuffer: renderBufferMB * 1024 * 1024
+        });
+        if (!result.trim()) {
+            throw new Error('El runner Java no devolvió ningún contenido DOT.');
+        }
+        return result;
+    } catch (err: any) {
+        throw new Error(`Error al convertir el archivo a DOT: ${err.message || err}`);
+    }
+}
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { execSync } from 'child_process';
@@ -117,7 +167,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (editor && isAutoFile(editor.document)) {
             applySymbolDecorations(editor);
             if (currentPanel) {
-                updatePreview(currentPanel, editor.document);
+                updatePreview(currentPanel, editor.document, context);
                 activeDocument = editor.document;
             } else {
                 showPreview(context, editor.document);
@@ -134,7 +184,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
         if (isAutoFile(event.document) && currentPanel) {
             if (activeDocument && event.document.uri.toString() === activeDocument.uri.toString()) {
-                updatePreview(currentPanel, event.document);
+                updatePreview(currentPanel, event.document, context);
             }
         }
     });
@@ -212,13 +262,16 @@ function preprocessDotCode(dotCode: string): string {
 }
 
 function isAutoFile(document: vscode.TextDocument): boolean {
-    return document.languageId === 'dot' || document.fileName.endsWith('.auto');
+    const supportedExtensions = ['.auto', '.dot', '.c', '.cbl', '.cobol', '.pse', '.pseudo'];
+    const ext = path.extname(document.fileName).toLowerCase();
+    const supportedLanguages = ['dot', 'c', 'cobol', 'pseudo'];
+    return supportedExtensions.includes(ext) || supportedLanguages.includes(document.languageId);
 }
 
 function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocument) {
     if (currentPanel) {
         currentPanel.reveal(vscode.ViewColumn.Beside);
-        updatePreview(currentPanel, document);
+        updatePreview(currentPanel, document, context);
         activeDocument = document;
         return;
     }
@@ -239,7 +292,7 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
         }
     );
 
-    updatePreview(panel, document);
+    updatePreview(panel, document, context);
     activeDocument = document;
 
     panel.onDidDispose(() => {
@@ -259,15 +312,13 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
     currentPanel = panel;
 }
 
-function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument) {
+function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument, context: vscode.ExtensionContext) {
     try {
-        const dotCode = document.getText();
+        // Usar convertToDot para obtener el código DOT (o el código original si no requiere conversión)
+        const dotCode = convertToDot(document, context);
         const processedDotCode = preprocessDotCode(dotCode);
-        
         const svgContent = convertDotToSvg(processedDotCode);
-        
         const isPanelInitialized = panel.webview.html.includes('automaton-automator-initialized');
-        
         if (isPanelInitialized) {
             panel.webview.postMessage({
                 command: 'updateSvg',
@@ -276,7 +327,6 @@ function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument
         } else {
             panel.webview.html = getWebviewContent(svgContent);
         }
-        
         panel.title = `Vista previa: ${path.basename(document.fileName)}`;
     } catch (error) {
         panel.webview.html = panel.webview.html || getErrorWebviewContent(String(error));

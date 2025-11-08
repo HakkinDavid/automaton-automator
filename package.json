@@ -18,7 +18,10 @@
   ],
   "activationEvents": [
     "onLanguage:dot",
-    "onCommand:automatonAutomator.showPreview"
+    "onCommand:automatonAutomator.showPreview",
+    "onLanguage:c",
+    "onLanguage:cobol",
+    "onLanguage:pseudo"
   ],
   "main": "extension.js",
   "contributes": {
@@ -28,6 +31,21 @@
         "aliases": ["DOT", "Graphviz", "auto"],
         "extensions": [".auto", ".dot"],
         "configuration": "language-configuration.json"
+      },
+      {
+        "id": "c",
+        "aliases": ["C"],
+        "extensions": [".c"]
+      },
+      {
+        "id": "cobol",
+        "aliases": ["COBOL"],
+        "extensions": [".cbl", ".cobol"]
+      },
+      {
+        "id": "pseudo",
+        "aliases": ["Pseudo"],
+        "extensions": [".pse", ".pseudo"]
       }
     ],
     "grammars": [
@@ -54,12 +72,12 @@
     "menus": {
       "editor/context": [
         {
-          "when": "resourceExtname == .auto || resourceExtname == .dot",
+          "when": "resourceExtname =~ /^\\.(auto|dot|c|cbl|cobol|pse|pseudo)$/",
           "command": "automatonAutomator.copyAsPng",
           "group": "automatonAutomator"
         },
         {
-          "when": "resourceExtname == .auto || resourceExtname == .dot",
+          "when": "resourceExtname =~ /^\\.(auto|dot|c|cbl|cobol|pse|pseudo)$/",
           "command": "automatonAutomator.showPreview",
           "group": "automatonAutomator"
         }
@@ -94,11 +112,23 @@
     }
   },
   "scripts": {
+    "copy-pcd": "export WORKDIR=$(pwd) && cd $WORKDIR/../compilers/ProgramChartDesigner/ && $WORKDIR/../compilers/ProgramChartDesigner/pack.sh && cd $WORKDIR && cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/bin/. ./resources/bin && cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/docs/. ./resources/docs && cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/lib/. ./resources/lib",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint . --ext .ts,.tsx"
   },
+  "files": [
+    "extension.js",
+    "extension.js.map",
+    "LICENSE",
+    "auto.png",
+    "automaton-1747737097737.png",
+    "resources/bin/*",
+    "resources/lib/*",
+    "README.md",
+    "package.json"
+  ],
   "dependencies": {
     "@types/node": "^14.14.37",
     "@types/vscode": "^1.60.0",

@@ -132,3 +132,4 @@ dist
 extension.js
 extension.js.map
 .DS_Store
+/resources
