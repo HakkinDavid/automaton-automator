@@ -8,7 +8,7 @@
   },
   "displayName": "Automaton Automator",
   "description": "Automaton editor with real time preview. Now supports experimental program flowcharting for C, COBOL and pseudocode.",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -117,7 +117,7 @@
     }
   },
   "scripts": {
-    "copy-pcd": "export WORKDIR=$(pwd) && cd $WORKDIR/../compilers/ProgramChartDesigner/ && $WORKDIR/../compilers/ProgramChartDesigner/pack.sh && cd $WORKDIR && cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/bin/. ./resources/bin && cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/docs/. ./resources/docs && cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/lib/. ./resources/lib",
+    "copy-pcd": "export WORKDIR=$(pwd) && cd $WORKDIR/../compilers/ProgramChartDesigner/ && $WORKDIR/../compilers/ProgramChartDesigner/pack.sh && cd $WORKDIR && sudo cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/bin/. ./resources/bin && sudo cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/docs/. ./resources/docs && sudo cp -r $WORKDIR/../compilers/ProgramChartDesigner/dist/pcd-1.0-all/lib/. ./resources/lib",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
