@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
+
+// === Variables globales y configuración inicial ===
 let dotExecutablePath: string;
 let currentPanel: vscode.WebviewPanel | undefined;
 let activeDocument: vscode.TextDocument | undefined;
@@ -37,6 +39,8 @@ const symbolDecorationsEnabled = config.get<Boolean>('symbolDecorations');
 const enableProgramChartDesigner = config.get<Boolean>('enableProgramChartDesigner');
 const renderDPI = config.get<Number>('renderDPI') ?? 0;
 const renderBufferMB = config.get<Number>('renderBufferMB')?.valueOf() ?? 10;
+
+// === Localización: textos en inglés y español ===
 const language = config.get<string>('language');
 const localization = {
     en: {
@@ -95,6 +99,11 @@ const localization = {
 const t = localization[language === 'es' ? 'es' : 'en'];
 let tempFiles: string[] = [];
 let lastCorrectDiagram = "";
+
+/**
+ * Convierte el documento activo a formato DOT utilizando el ejecutable Java de ProgramChartDesigner.
+ * Si el archivo no es compatible, devuelve el texto original.
+ */
 function convertToDot(document: vscode.TextDocument, context: vscode.ExtensionContext): string {
     const fileName = document.fileName;
     const ext = path.extname(fileName).toLowerCase();
@@ -131,6 +140,10 @@ function convertToDot(document: vscode.TextDocument, context: vscode.ExtensionCo
         throw new Error(`${t.errorConvert} ${err.message || err}`);
     }
 }
+
+/**
+ * Activa la extensión y registra los comandos principales (mostrar vista previa, copiar como imagen, insertar símbolo).
+ */
 export function activate(context: vscode.ExtensionContext) {
     dotExecutablePath = resolveDotExecutable(context);
     const showPreviewCommand = vscode.commands.registerCommand('automatonAutomator.showPreview', () => {
@@ -223,6 +236,10 @@ export function activate(context: vscode.ExtensionContext) {
         showPreview(context, vscode.window.activeTextEditor.document);
     }
 }
+
+/**
+ * Aplica decoraciones visuales a los símbolos escritos como secuencias (\epsilon → ε, etc.).
+ */
 function applySymbolDecorations(editor: vscode.TextEditor) {
     if (!symbolDecorationsEnabled) {
         return;
@@ -259,6 +276,10 @@ function applySymbolDecorations(editor: vscode.TextEditor) {
     }
     editor.setDecorations(symbolDecorationType, decorations);
 }
+
+/**
+ * Sustituye las secuencias textuales (\epsilon, \to, etc.) por símbolos visibles antes del renderizado.
+ */
 function preprocessDotCode(dotCode: string): string {
     let processedCode = dotCode;
     for (const [sequence, symbol] of Object.entries(symbolMap)) {
@@ -268,12 +289,20 @@ function preprocessDotCode(dotCode: string): string {
     processedCode = processedCode.replace(/^[\t ]+/gm, '');
     return processedCode;
 }
+
+/**
+ * Determina si un documento es compatible con la extensión (por extensión o lenguaje).
+ */
 function isAutoFile(document: vscode.TextDocument): boolean {
     const supportedExtensions = ['.auto', '.dot'].concat(enableProgramChartDesigner ? ['.c', '.cbl', '.cobol', '.pse', '.pseudo'] : []);
     const ext = path.extname(document.fileName).toLowerCase();
     const supportedLanguages = ['dot'].concat(enableProgramChartDesigner ? ['c', 'cobol', 'pseudo'] : []);
     return supportedExtensions.includes(ext) || supportedLanguages.includes(document.languageId);
 }
+
+/**
+ * Crea o actualiza el panel de vista previa en VSCode.
+ */
 function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocument) {
     if (currentPanel) {
         currentPanel.reveal(vscode.ViewColumn.Beside);
@@ -312,6 +341,10 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
     });
     currentPanel = panel;
 }
+
+/**
+ * Actualiza el contenido SVG de la vista previa a partir del archivo fuente.
+ */
 function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument, context: vscode.ExtensionContext) {
     try {
         const dotCode = convertToDot(document, context);
@@ -333,6 +366,10 @@ function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument
         panel.webview.html = getWebviewContent(lastCorrectDiagram).replace("<div id=\"notes\"></div>", "<div id=\"notes\">" + getErrorWebviewContent(String(error)) + "</div>");
     }
 }
+
+/**
+ * Determina la ruta correcta del ejecutable GraphViz (dot) según el sistema operativo.
+ */
 function resolveDotExecutable(context: vscode.ExtensionContext): string {
     const binPath = path.join(context.extensionPath, 'resources', 'bin');
     const dotWindows = path.join(binPath, 'dot.exe');
@@ -345,6 +382,10 @@ function resolveDotExecutable(context: vscode.ExtensionContext): string {
         return 'dot';
     }
 }
+
+/**
+ * Convierte el código DOT en SVG mediante la ejecución de GraphViz.
+ */
 function convertDotToSvg(dotCode: string, context: vscode.ExtensionContext): string {
     try {
         const result = execSync(`${dotExecutablePath} -Tsvg`, {
@@ -357,6 +398,10 @@ function convertDotToSvg(dotCode: string, context: vscode.ExtensionContext): str
         throw new Error(`${t.errorConvert} ${error}.`);
     }
 }
+
+/**
+ * Genera un archivo PNG o SVG temporal y lo copia al portapapeles según el sistema operativo.
+ */
 async function copyAs(document: vscode.TextDocument, context: vscode.ExtensionContext, format: string = 'png') {
     try {
         const dotCode = convertToDot(document, context);
@@ -426,6 +471,7 @@ $img.Dispose()
         vscode.window.showErrorMessage(`${t.errorConvert} ${error}`);
     }
 }
+
 function getWebviewContent(svgContent: string): string {
     return `<!DOCTYPE html>
 <html lang="en" class="automaton-automator-initialized">
@@ -596,6 +642,10 @@ function getErrorWebviewContent(errorMessage: string): string {
     </style>
     <h2 class="errTitle">${t.errorDiagramSubtitle}</h2>`;
 }
+
+/**
+ * Limpia recursos temporales y decoraciones al desactivar la extensión.
+ */
 export function deactivate() {
     if (symbolDecorationType) {
         symbolDecorationType.dispose();
