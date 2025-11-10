@@ -41,11 +41,11 @@ function convertToDot(document: vscode.TextDocument, context: vscode.ExtensionCo
             maxBuffer: renderBufferMB * 1024 * 1024
         });
         if (!result.trim()) {
-            throw new Error('El runner Java no devolvió ningún contenido DOT.');
+            throw new Error(t.errorNoContent);
         }
         return result;
     } catch (err: any) {
-        throw new Error(`Error al convertir el archivo a DOT: ${err.message || err}`);
+        throw new Error(`${t.errorConvert} ${err.message || err}`);
     }
 }
 import * as vscode from 'vscode';
@@ -101,12 +101,69 @@ const renderDPI = config.get<Number>('renderDPI') ?? 0;
 
 const renderBufferMB = config.get<Number>('renderBufferMB')?.valueOf() ?? 10;
 
+const language = config.get<string>('language'); // puede ser 'es' o 'en'
+
+const localization = {
+    en: {
+        previewTitle: 'Preview:',
+        errorNoContent: 'The Java runner returned no DOT content.',
+        errorConvert: 'Error converting file to DOT:',
+        errorCopying: (agent: string) => `Error when copying with ${agent}.`,
+        copiedMessage: (format: string) => `Automaton copied as ${format.toUpperCase()} to the clipboard.`,
+        failedCopyMessage: 'Could not copy the image to the clipboard. You can open the folder containing the generated file.',
+        openFolderOption: 'Show image in folder',
+        previewPanelTitle: 'Automaton Automator Preview',
+        copyAsPng: 'Copy as PNG',
+        copyAsSvg: 'Copy as SVG',
+        zoomIn: 'Zoom +',
+        zoomOut: 'Zoom -',
+        resetZoom: 'Reset Zoom',
+        errorDiagramTitle: "Couldn't update the diagram",
+        errorDiagramSubtitle: 'Showing last correctly generated diagram...',
+        symbols: {
+            epsilon: "epsilon",
+            arrow: "arrow",
+            union: "union",
+            intersection: "intersection",
+            sigma: "sigma",
+            emptySet: "empty set",
+            blankSpace: "blank space",
+        }
+    },
+    es: {
+        previewTitle: 'Vista previa:',
+        errorNoContent: 'El runner Java no devolvió ningún contenido DOT.',
+        errorConvert: 'Error al convertir el archivo a DOT:',
+        errorCopying: (agent: string) => `Error al copiar con ${agent}.`,
+        copiedMessage: (format: string) => `Autómata copiado como ${format.toUpperCase()} al portapapeles.`,
+        failedCopyMessage: 'No se pudo copiar la imagen al portapapeles. Puedes abrir la carpeta que contiene el archivo generado.',
+        openFolderOption: 'Mostrar imagen en carpeta',
+        previewPanelTitle: 'Vista previa de Automaton Automator',
+        copyAsPng: 'Copiar como PNG',
+        copyAsSvg: 'Copiar como SVG',
+        zoomIn: 'Acercar +',
+        zoomOut: 'Alejar -',
+        resetZoom: 'Restablecer zoom',
+        errorDiagramTitle: 'No se pudo actualizar el diagrama',
+        errorDiagramSubtitle: 'Mostrando el último diagrama generado correctamente...',
+        symbols: {
+            epsilon: "épsilon",
+            arrow: "flecha",
+            union: "unión",
+            intersection: "intersección",
+            sigma: "sigma",
+            emptySet: "conjunto vacío",
+            blankSpace: "espacio",
+        }
+    }
+};
+const t = localization[language === 'es' ? 'es' : 'en'];
+
 let tempFiles: string[] = [];
 
 let lastCorrectDiagram = "";
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Automaton Automator is now active!');
     dotExecutablePath = resolveDotExecutable(context);
 
     const showPreviewCommand = vscode.commands.registerCommand('automatonAutomator.showPreview', () => {
@@ -134,13 +191,13 @@ export function activate(context: vscode.ExtensionContext) {
         'automatonAutomator.insertSymbol', 
         async () => {
             const symbols = [
-                { label: 'ε (epsilon)', value: 'ε' },
-                { label: '→ (flecha)', value: '→' },
-                { label: '∪ (unión)', value: '∪' },
-                { label: '∩ (intersección)', value: '∩' },
-                { label: 'Σ (sigma)', value: 'Σ' },
-                { label: '∅ (conjunto vacío)', value: '∅' },
-                { label: '⊔ (espacio)', value: '⊔'}
+                { label: `ε (${t.symbols.epsilon})`, value: 'ε' },
+                { label: `→ (${t.symbols.arrow})`, value: '→' },
+                { label: `∪ (${t.symbols.union})`, value: '∪' },
+                { label: `∩ (${t.symbols.intersection})`, value: '∩' },
+                { label: `Σ (${t.symbols.sigma})`, value: 'Σ' },
+                { label: `∅ (${t.symbols.emptySet})`, value: '∅' },
+                { label: `⊔ (${t.symbols.blankSpace})`, value: '⊔'}
             ];
             
             const selected = await vscode.window.showQuickPick(
@@ -286,7 +343,7 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
 
     const panel = vscode.window.createWebviewPanel(
         'automatonAutomatorPreview',
-        'Automaton Automator Preview',
+        t.previewPanelTitle,
         {
             viewColumn: vscode.ViewColumn.Beside,
             preserveFocus: true
@@ -337,7 +394,7 @@ function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument
             lastCorrectDiagram = svgContent;
             panel.webview.html = getWebviewContent(svgContent);
         }
-        panel.title = `Vista previa: ${path.basename(document.fileName)}`;
+        panel.title = `${t.previewTitle} ${path.basename(document.fileName)}`;
     } catch (error) {
         panel.webview.html = getWebviewContent(lastCorrectDiagram).replace("<div id=\"notes\"></div>", "<div id=\"notes\">" + getErrorWebviewContent(String(error)) + "</div>");
     }
@@ -365,7 +422,7 @@ function convertDotToSvg(dotCode: string, context: vscode.ExtensionContext): str
         });
         return result;
     } catch (error) {
-        throw new Error(`Error al generar SVG: ${error}.`);
+        throw new Error(`${t.errorConvert} ${error}.`);
     }
 }
 
@@ -403,7 +460,7 @@ $img.Dispose()
                 execSync(`powershell -NoProfile -STA -Command "${psScript}"`, { windowsHide: true });
                 success = true;
             } catch (winError) {
-                console.error('Error when copying with PowerShell:', winError);
+                console.error(` ${t.errorCopying("PowerShell")}`, winError);
             }
         } 
         else if (platform === 'darwin') {
@@ -411,7 +468,7 @@ $img.Dispose()
                 execSync(`osascript -e 'set the clipboard to (POSIX file "${imageFilePath}")'`);
                 success = true;
             } catch (macError) {
-                console.error('Error when copying with osascript:', macError);
+                console.error(` ${t.errorCopying("osascript")}`, macError);
             }
         } 
         else if (platform === 'linux') {
@@ -423,17 +480,17 @@ $img.Dispose()
                     execSync(`wl-copy < "${imageFilePath}"`);
                     success = true;
                 } catch (waylandError) {
-                    console.error('Error when copying with xclip/wl-copy:', linuxError, waylandError);
+                    console.error(` ${t.errorCopying("xclip/wl-copy")}`, linuxError, waylandError);
                 }
             }
         }
         
         if (success) {
-            vscode.window.showInformationMessage(`Automaton copied as ${format.toUpperCase()} to the clipboard.`);
+            vscode.window.showInformationMessage(t.copiedMessage(format));
         } else {
-            const openOption = 'Mostrar imagen en carpeta';
+            const openOption = t.openFolderOption;
             const choice = await vscode.window.showInformationMessage(
-                'No se pudo copiar la imagen al portapapeles. Puedes abrir la carpeta que contiene el archivo generado.',
+                t.failedCopyMessage,
                 openOption
             );
             if (choice === openOption) {
@@ -443,7 +500,7 @@ $img.Dispose()
         }
         
     } catch (error) {
-        vscode.window.showErrorMessage(`Error when creating PNG: ${error}`);
+        vscode.window.showErrorMessage(`${t.errorConvert} ${error}`);
     }
 }
 
@@ -453,7 +510,7 @@ function getWebviewContent(svgContent: string): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Automaton Automator</title>
+    <title>${t.previewPanelTitle}</title>
     <style>
         body {
             display: flex;
@@ -491,11 +548,11 @@ function getWebviewContent(svgContent: string): string {
 </head>
 <body>
     <div class="controls">
-        <button id="copyBtn" type="button">Copy as PNG</button>
-        <button id="copySvgBtn" type="button">Copy as SVG</button>
-        <button id="zoomInBtn" type="button">Zoom +</button>
-        <button id="zoomOutBtn" type="button">Zoom -</button>
-        <button id="resetZoomBtn" type="button">Reset Zoom</button>
+        <button id="copyBtn" type="button">${t.copyAsPng}</button>
+        <button id="copySvgBtn" type="button">${t.copyAsSvg}</button>
+        <button id="zoomInBtn" type="button">${t.zoomIn}</button>
+        <button id="zoomOutBtn" type="button">${t.zoomOut}</button>
+        <button id="resetZoomBtn" type="button">${t.resetZoom}</button>
     </div>
     <div class="svg-container" id="svgContainer">
         ${svgContent}
@@ -614,7 +671,7 @@ function getWebviewContent(svgContent: string): string {
 }
 
 function getErrorWebviewContent(errorMessage: string): string {
-    return `<h2 class="errTitle">Couldn't update the diagram</h2>
+    return `<h2 class="errTitle">${t.errorDiagramTitle}</h2>
     <p class="errMsg">${errorMessage}</p>
     <style>
         .errTitle {
@@ -636,7 +693,7 @@ function getErrorWebviewContent(errorMessage: string): string {
             overflow: auto;
         }
     </style>
-    <h2 class="errTitle">Showing last correctly generated diagram...</h2>`;
+    <h2 class="errTitle">${t.errorDiagramSubtitle}</h2>`;
 }
 
 export function deactivate() {

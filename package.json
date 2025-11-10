@@ -8,7 +8,7 @@
   },
   "displayName": "Automaton Automator",
   "description": "Automaton editor with real time preview. Now supports experimental program flowcharting for C, COBOL and pseudocode.",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "engines": {
     "vscode": "^1.60.0"
   },
@@ -91,6 +91,11 @@
               "default": true,
               "description": "Whether or not to have escape sequences be replaced in your live editor. This may harm performance on large documents."
             },
+            "automatonAutomator.language": {
+                "type": "string",
+                "default": "en",
+                "description": "Language to be used by Automaton Automator. Supported languages are English ('en') or Spanish ('es')."
+              },
             "automatonAutomator.enableProgramChartDesigner": {
                 "type": "boolean",
                 "default": true,
