@@ -1,70 +1,13 @@
-/**
- * Convierte el documento actual a código DOT usando el runner Java si es necesario.
- * @param document Documento de VSCode a procesar
- * @param context Contexto de la extensión
- * @returns Código DOT generado
- */
-function convertToDot(document: vscode.TextDocument, context: vscode.ExtensionContext): string {
-    const fileName = document.fileName;
-    const ext = path.extname(fileName).toLowerCase();
-    let language: string | null = null;
-    if (ext === '.c' || document.languageId.toLowerCase() == "c") {
-        language = 'c';
-    } else if (ext === '.cbl' || ext === '.cobol' || document.languageId.toLowerCase() == "cobol") {
-        language = 'cobol';
-    } else if (ext === '.pse' || ext === '.pseudo') {
-        language = 'pseudo';
-    }
-
-    // Si no coincide con ninguna extensión soportada, retornar el contenido como DOT
-    if (!language) {
-        return document.getText();
-    }
-
-    // Crear archivo temporal con el contenido del documento
-    const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
-    if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-    }
-    const tempFile = path.join(tmpDir, `automaton-tmp-${Date.now()}${ext}`);
-    fs.writeFileSync(tempFile, document.getText(), { encoding: 'utf8' });
-    tempFiles.push(tempFile);
-
-    // Construir classpath para el runner Java
-    const classpath = context.asAbsolutePath('resources/lib/*');
-
-    // Ejecutar el runner Java
-    try {
-        const cmd = `java -cp "${classpath}" ProgramChartDesigner.App.Runner ${language} "${tempFile}" --stdout`;
-        const result = execSync(cmd, {
-            encoding: 'utf-8',
-            maxBuffer: renderBufferMB * 1024 * 1024
-        });
-        if (!result.trim()) {
-            throw new Error(t.errorNoContent);
-        }
-        return result;
-    } catch (err: any) {
-        throw new Error(`${t.errorConvert} ${err.message || err}`);
-    }
-}
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
-
-// Variable global para la ruta del ejecutable dot
 let dotExecutablePath: string;
-
 let currentPanel: vscode.WebviewPanel | undefined;
 let activeDocument: vscode.TextDocument | undefined;
-
 let symbolDecorationType: vscode.TextEditorDecorationType | undefined;
-
 const config = vscode.workspace.getConfiguration('automatonAutomator');
-
 const userSymbolMap = config.get<Record<string, string>>('symbolMappings') || {};
-
 const defaultSymbolMap: Record<string, string> = {
     '\\epsilon': 'ε',
     '\\to': '→',
@@ -89,20 +32,12 @@ const defaultSymbolMap: Record<string, string> = {
     "_9": "₉",
     "_0": "₀"
 };
-
-// Definir mapeo de secuencias de escape a símbolos matemáticos
 const symbolMap = { ...defaultSymbolMap, ...userSymbolMap };
-
 const symbolDecorationsEnabled = config.get<Boolean>('symbolDecorations');
-
 const enableProgramChartDesigner = config.get<Boolean>('enableProgramChartDesigner');
-
 const renderDPI = config.get<Number>('renderDPI') ?? 0;
-
 const renderBufferMB = config.get<Number>('renderBufferMB')?.valueOf() ?? 10;
-
-const language = config.get<string>('language'); // puede ser 'es' o 'en'
-
+const language = config.get<string>('language'); 
 const localization = {
     en: {
         previewTitle: 'Preview:',
@@ -158,35 +93,64 @@ const localization = {
     }
 };
 const t = localization[language === 'es' ? 'es' : 'en'];
-
 let tempFiles: string[] = [];
-
 let lastCorrectDiagram = "";
-
+function convertToDot(document: vscode.TextDocument, context: vscode.ExtensionContext): string {
+    const fileName = document.fileName;
+    const ext = path.extname(fileName).toLowerCase();
+    let language: string | null = null;
+    if (ext === '.c' || document.languageId.toLowerCase() == "c") {
+        language = 'c';
+    } else if (ext === '.cbl' || ext === '.cobol' || document.languageId.toLowerCase() == "cobol") {
+        language = 'cobol';
+    } else if (ext === '.pse' || ext === '.pseudo') {
+        language = 'pseudo';
+    }
+    if (!language) {
+        return document.getText();
+    }
+    const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
+    if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    const tempFile = path.join(tmpDir, `automaton-tmp-${Date.now()}${ext}`);
+    fs.writeFileSync(tempFile, document.getText(), { encoding: 'utf8' });
+    tempFiles.push(tempFile);
+    const classpath = context.asAbsolutePath('resources/lib/*');
+    try {
+        const cmd = `java -cp "${classpath}" ProgramChartDesigner.App.Runner ${language} "${tempFile}" --stdout`;
+        const result = execSync(cmd, {
+            encoding: 'utf-8',
+            maxBuffer: renderBufferMB * 1024 * 1024
+        });
+        if (!result.trim()) {
+            throw new Error(t.errorNoContent);
+        }
+        return result;
+    } catch (err: any) {
+        throw new Error(`${t.errorConvert} ${err.message || err}`);
+    }
+}
 export function activate(context: vscode.ExtensionContext) {
     dotExecutablePath = resolveDotExecutable(context);
-
     const showPreviewCommand = vscode.commands.registerCommand('automatonAutomator.showPreview', () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
             showPreview(context, editor.document);
         }
     });
-
     const copyAsPngCommand = vscode.commands.registerCommand('automatonAutomator.copyAsPng', async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
             await copyAs(editor.document, context, 'png');
         }
     });
-
     const copyAsSvgCommand = vscode.commands.registerCommand('automatonAutomator.copyAsSvg', async () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && isAutoFile(editor.document)) {
             await copyAs(editor.document, context, 'svg');
         }
     });
-
     const insertSymbolCommand = vscode.commands.registerCommand(
         'automatonAutomator.insertSymbol', 
         async () => {
@@ -199,12 +163,10 @@ export function activate(context: vscode.ExtensionContext) {
                 { label: `∅ (${t.symbols.emptySet})`, value: '∅' },
                 { label: `⊔ (${t.symbols.blankSpace})`, value: '⊔'}
             ];
-            
             const selected = await vscode.window.showQuickPick(
                 symbols.map(s => s.label),
                 { placeHolder: 'Selecciona un símbolo para insertar' }
             );
-            
             if (selected) {
                 const symbol = symbols.find(s => s.label === selected)?.value;
                 const editor = vscode.window.activeTextEditor;
@@ -216,7 +178,6 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
     );
-
     vscode.workspace.onDidOpenTextDocument(document => {
         if (isAutoFile(document)) {
             setTimeout(() => {
@@ -227,7 +188,6 @@ export function activate(context: vscode.ExtensionContext) {
             }, 300);
         }
     });
-
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor && isAutoFile(editor.document)) {
             applySymbolDecorations(editor);
@@ -241,7 +201,6 @@ export function activate(context: vscode.ExtensionContext) {
             currentPanel.dispose();
         }
     });
-
     vscode.workspace.onDidChangeTextDocument(event => {
         const editor = vscode.window.activeTextEditor;
         if (editor && event.document === editor.document && isAutoFile(editor.document)) {
@@ -253,21 +212,17 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
     });
-
     context.subscriptions.push(
         showPreviewCommand,
         copyAsPngCommand,
         copyAsSvgCommand,
         insertSymbolCommand
     );
-
     if (vscode.window.activeTextEditor && isAutoFile(vscode.window.activeTextEditor.document)) {
         applySymbolDecorations(vscode.window.activeTextEditor);
         showPreview(context, vscode.window.activeTextEditor.document);
     }
 }
-
-// Utiliza decoradores de texto en VS Code para mostrar los símbolos
 function applySymbolDecorations(editor: vscode.TextEditor) {
     if (!symbolDecorationsEnabled) {
         return;
@@ -275,29 +230,21 @@ function applySymbolDecorations(editor: vscode.TextEditor) {
     if (symbolDecorationType) {
         symbolDecorationType.dispose();
     }
-
     symbolDecorationType = vscode.window.createTextEditorDecorationType({
         textDecoration: 'none; display: none;'
     });
-
     const decorations: vscode.DecorationOptions[] = [];
     const text = editor.document.getText();
-
-    // Convertir claves del symbolMap a su forma textual escapada literal
     const escapeToVisible = Object.entries(symbolMap).map(([logicalKey, symbol]) => {
-        // El documento contiene \\epsilon, por lo que hay que convertir \epsilon -> \\epsilon
         const rawTextKey = logicalKey.replace(/\\/g, '\\\\');
         return { rawTextKey, symbol };
     });
-
     for (const { rawTextKey, symbol } of escapeToVisible) {
         const regex = new RegExp(rawTextKey.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
-
         let match: RegExpExecArray | null;
         while ((match = regex.exec(text)) !== null) {
             const startPos = editor.document.positionAt(match.index);
             const endPos = editor.document.positionAt(match.index + match[0].length);
-
             decorations.push({
                 range: new vscode.Range(startPos, endPos),
                 renderOptions: {
@@ -310,29 +257,23 @@ function applySymbolDecorations(editor: vscode.TextEditor) {
             });
         }
     }
-
     editor.setDecorations(symbolDecorationType, decorations);
 }
-
 function preprocessDotCode(dotCode: string): string {
     let processedCode = dotCode;
     for (const [sequence, symbol] of Object.entries(symbolMap)) {
         const regex = new RegExp(sequence.replace(/\\/g, '\\\\'), 'g');
         processedCode = processedCode.replace(regex, symbol);
     }
-
-    processedCode = processedCode.replace(/^[\t ]+/gm, ''); // Permite que el usuario utilice indentación pero la elimina del código DOT final, ya que Graphviz lo graficaría
-    
+    processedCode = processedCode.replace(/^[\t ]+/gm, ''); 
     return processedCode;
 }
-
 function isAutoFile(document: vscode.TextDocument): boolean {
     const supportedExtensions = ['.auto', '.dot'].concat(enableProgramChartDesigner ? ['.c', '.cbl', '.cobol', '.pse', '.pseudo'] : []);
     const ext = path.extname(document.fileName).toLowerCase();
     const supportedLanguages = ['dot'].concat(enableProgramChartDesigner ? ['c', 'cobol', 'pseudo'] : []);
     return supportedExtensions.includes(ext) || supportedLanguages.includes(document.languageId);
 }
-
 function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocument) {
     if (currentPanel) {
         currentPanel.reveal(vscode.ViewColumn.Beside);
@@ -340,7 +281,6 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
         activeDocument = document;
         return;
     }
-
     const panel = vscode.window.createWebviewPanel(
         'automatonAutomatorPreview',
         t.previewPanelTitle,
@@ -356,15 +296,12 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
             ]
         }
     );
-
     updatePreview(panel, document, context);
     activeDocument = document;
-
     panel.onDidDispose(() => {
         currentPanel = undefined;
         activeDocument = undefined;
     });
-
     panel.webview.onDidReceiveMessage(async message => {
         if (message.command === 'copyAsPng' && activeDocument) {
             await copyAs(activeDocument, context, 'png');
@@ -373,13 +310,10 @@ function showPreview(context: vscode.ExtensionContext, document: vscode.TextDocu
             await copyAs(activeDocument, context, 'svg');
         }
     });
-
     currentPanel = panel;
 }
-
 function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument, context: vscode.ExtensionContext) {
     try {
-        // Usar convertToDot para obtener el código DOT (o el código original si no requiere conversión)
         const dotCode = convertToDot(document, context);
         const processedDotCode = preprocessDotCode(dotCode);
         const svgContent = convertDotToSvg(processedDotCode, context);
@@ -399,7 +333,6 @@ function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument
         panel.webview.html = getWebviewContent(lastCorrectDiagram).replace("<div id=\"notes\"></div>", "<div id=\"notes\">" + getErrorWebviewContent(String(error)) + "</div>");
     }
 }
-
 function resolveDotExecutable(context: vscode.ExtensionContext): string {
     const binPath = path.join(context.extensionPath, 'resources', 'bin');
     const dotWindows = path.join(binPath, 'dot.exe');
@@ -409,10 +342,9 @@ function resolveDotExecutable(context: vscode.ExtensionContext): string {
     } else if (fs.existsSync(dotUnix)) {
         return `"${dotUnix}"`;
     } else {
-        return 'dot'; // fallback al sistema
+        return 'dot'; 
     }
 }
-
 function convertDotToSvg(dotCode: string, context: vscode.ExtensionContext): string {
     try {
         const result = execSync(`${dotExecutablePath} -Tsvg`, {
@@ -425,29 +357,22 @@ function convertDotToSvg(dotCode: string, context: vscode.ExtensionContext): str
         throw new Error(`${t.errorConvert} ${error}.`);
     }
 }
-
 async function copyAs(document: vscode.TextDocument, context: vscode.ExtensionContext, format: string = 'png') {
     try {
         const dotCode = convertToDot(document, context);
         const processedDotCode = preprocessDotCode(dotCode);
-        
         const tmpDir = path.join(require('os').tmpdir(), 'automaton-automator');
         if (!fs.existsSync(tmpDir)) {
             fs.mkdirSync(tmpDir, { recursive: true });
         }
         const imageFilePath = path.join(tmpDir, `automaton-${Date.now()}.${format}`);
-
         tempFiles.push(imageFilePath);
-        
         const dpiOption = renderDPI && format !== 'svg' ? ` -Gdpi=${renderDPI}` : '';
         execSync(`dot -T${format + dpiOption} -o "${imageFilePath}"`, {
             input: processedDotCode
         });
-        
         const platform = process.platform;
-        
         let success = false;
-        
         if (platform === 'win32') {
             try {
                 const psScript = `
@@ -484,7 +409,6 @@ $img.Dispose()
                 }
             }
         }
-        
         if (success) {
             vscode.window.showInformationMessage(t.copiedMessage(format));
         } else {
@@ -498,12 +422,10 @@ $img.Dispose()
                 vscode.commands.executeCommand('revealFileInOS', revealUri);
             }
         }
-        
     } catch (error) {
         vscode.window.showErrorMessage(`${t.errorConvert} ${error}`);
     }
 }
-
 function getWebviewContent(svgContent: string): string {
     return `<!DOCTYPE html>
 <html lang="en" class="automaton-automator-initialized">
@@ -561,12 +483,9 @@ function getWebviewContent(svgContent: string): string {
     <script>
         const vscode = acquireVsCodeApi();
         let scale = 1;
-        
         const currentState = vscode.getState() || { scale: 1 };
         scale = currentState.scale;
-        
         updateZoom();
-        
         document.getElementById('copyBtn').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -575,7 +494,6 @@ function getWebviewContent(svgContent: string): string {
             });
             return false;
         });
-
         document.getElementById('copySvgBtn').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -584,7 +502,6 @@ function getWebviewContent(svgContent: string): string {
             });
             return false;
         });
-        
         document.getElementById('zoomInBtn').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -593,7 +510,6 @@ function getWebviewContent(svgContent: string): string {
             saveState();
             return false;
         });
-        
         document.getElementById('zoomOutBtn').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -602,7 +518,6 @@ function getWebviewContent(svgContent: string): string {
             saveState();
             return false;
         });
-        
         document.getElementById('resetZoomBtn').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -611,7 +526,6 @@ function getWebviewContent(svgContent: string): string {
             saveState();
             return false;
         });
-        
         function updateZoom() {
             const svg = document.querySelector('svg');
             if (svg) {
@@ -619,14 +533,11 @@ function getWebviewContent(svgContent: string): string {
                 svg.style.transformOrigin = 'top left';
             }
         }
-        
         function saveState() {
             vscode.setState({ scale: scale });
         }
-        
         window.addEventListener('message', event => {
             const message = event.data;
-            
             switch (message.command) {
                 case 'updateSvg':
                     document.getElementById('notes').innerHTML = '';
@@ -635,31 +546,22 @@ function getWebviewContent(svgContent: string): string {
                     break;
             }
         });
-        
-        // Manejar eventos de clic selectivamente
         document.addEventListener('click', function(e) {
-            // Permitir que los botones funcionen normalmente
             if (e.target && (
                 e.target.tagName === 'BUTTON' || 
                 e.target.closest('button')
             )) {
                 return true;
             }
-            
-            // Para cualquier otro elemento, prevenir comportamiento predeterminado
             e.preventDefault();
             e.stopPropagation();
             return false;
         }, true);
-        
-        // Manejar eventos de mousedown selectivamente
         document.addEventListener('mousedown', function(e) {
             e.preventDefault();
             e.stopPropagation();
             return false;
         }, true);
-        
-        // Prevenir doble clic que podría causar selección de texto
         document.addEventListener('dblclick', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -669,7 +571,6 @@ function getWebviewContent(svgContent: string): string {
 </body>
 </html>`;
 }
-
 function getErrorWebviewContent(errorMessage: string): string {
     return `<h2 class="errTitle">${t.errorDiagramTitle}</h2>
     <p class="errMsg">${errorMessage}</p>
@@ -695,7 +596,6 @@ function getErrorWebviewContent(errorMessage: string): string {
     </style>
     <h2 class="errTitle">${t.errorDiagramSubtitle}</h2>`;
 }
-
 export function deactivate() {
     if (symbolDecorationType) {
         symbolDecorationType.dispose();
