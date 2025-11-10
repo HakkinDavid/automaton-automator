@@ -37,7 +37,7 @@ const symbolDecorationsEnabled = config.get<Boolean>('symbolDecorations');
 const enableProgramChartDesigner = config.get<Boolean>('enableProgramChartDesigner');
 const renderDPI = config.get<Number>('renderDPI') ?? 0;
 const renderBufferMB = config.get<Number>('renderBufferMB')?.valueOf() ?? 10;
-const language = config.get<string>('language'); 
+const language = config.get<string>('language');
 const localization = {
     en: {
         previewTitle: 'Preview:',
@@ -152,7 +152,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
     const insertSymbolCommand = vscode.commands.registerCommand(
-        'automatonAutomator.insertSymbol', 
+        'automatonAutomator.insertSymbol',
         async () => {
             const symbols = [
                 { label: `ε (${t.symbols.epsilon})`, value: 'ε' },
@@ -161,7 +161,7 @@ export function activate(context: vscode.ExtensionContext) {
                 { label: `∩ (${t.symbols.intersection})`, value: '∩' },
                 { label: `Σ (${t.symbols.sigma})`, value: 'Σ' },
                 { label: `∅ (${t.symbols.emptySet})`, value: '∅' },
-                { label: `⊔ (${t.symbols.blankSpace})`, value: '⊔'}
+                { label: `⊔ (${t.symbols.blankSpace})`, value: '⊔' }
             ];
             const selected = await vscode.window.showQuickPick(
                 symbols.map(s => s.label),
@@ -265,7 +265,7 @@ function preprocessDotCode(dotCode: string): string {
         const regex = new RegExp(sequence.replace(/\\/g, '\\\\'), 'g');
         processedCode = processedCode.replace(regex, symbol);
     }
-    processedCode = processedCode.replace(/^[\t ]+/gm, ''); 
+    processedCode = processedCode.replace(/^[\t ]+/gm, '');
     return processedCode;
 }
 function isAutoFile(document: vscode.TextDocument): boolean {
@@ -342,7 +342,7 @@ function resolveDotExecutable(context: vscode.ExtensionContext): string {
     } else if (fs.existsSync(dotUnix)) {
         return `"${dotUnix}"`;
     } else {
-        return 'dot'; 
+        return 'dot';
     }
 }
 function convertDotToSvg(dotCode: string, context: vscode.ExtensionContext): string {
@@ -387,7 +387,7 @@ $img.Dispose()
             } catch (winError) {
                 console.error(` ${t.errorCopying("PowerShell")}`, winError);
             }
-        } 
+        }
         else if (platform === 'darwin') {
             try {
                 execSync(`osascript -e 'set the clipboard to (POSIX file "${imageFilePath}")'`);
@@ -395,7 +395,7 @@ $img.Dispose()
             } catch (macError) {
                 console.error(` ${t.errorCopying("osascript")}`, macError);
             }
-        } 
+        }
         else if (platform === 'linux') {
             try {
                 execSync(`xclip -selection clipboard -t image/png -i "${imageFilePath}"`);
