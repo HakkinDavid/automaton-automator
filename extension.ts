@@ -103,6 +103,8 @@ const renderBufferMB = config.get<Number>('renderBufferMB')?.valueOf() ?? 10;
 
 let tempFiles: string[] = [];
 
+let lastCorrectDiagram = "";
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('Automaton Automator is now active!');
     dotExecutablePath = resolveDotExecutable(context);
@@ -326,16 +328,18 @@ function updatePreview(panel: vscode.WebviewPanel, document: vscode.TextDocument
         const svgContent = convertDotToSvg(processedDotCode, context);
         const isPanelInitialized = panel.webview.html.includes('automaton-automator-initialized');
         if (isPanelInitialized) {
+            lastCorrectDiagram = svgContent;
             panel.webview.postMessage({
                 command: 'updateSvg',
                 svgContent: svgContent
             });
         } else {
+            lastCorrectDiagram = svgContent;
             panel.webview.html = getWebviewContent(svgContent);
         }
         panel.title = `Vista previa: ${path.basename(document.fileName)}`;
     } catch (error) {
-        panel.webview.html = panel.webview.html || getErrorWebviewContent(String(error));
+        panel.webview.html = getWebviewContent(lastCorrectDiagram).replace("<div id=\"notes\"></div>", "<div id=\"notes\">" + getErrorWebviewContent(String(error)) + "</div>");
     }
 }
 
@@ -496,6 +500,7 @@ function getWebviewContent(svgContent: string): string {
     <div class="svg-container" id="svgContainer">
         ${svgContent}
     </div>
+    <div id=\"notes\"></div>
     <script>
         const vscode = acquireVsCodeApi();
         let scale = 1;
@@ -567,6 +572,7 @@ function getWebviewContent(svgContent: string): string {
             
             switch (message.command) {
                 case 'updateSvg':
+                    document.getElementById('notes').innerHTML = '';
                     document.getElementById('svgContainer').innerHTML = message.svgContent;
                     updateZoom();
                     break;
@@ -608,14 +614,10 @@ function getWebviewContent(svgContent: string): string {
 }
 
 function getErrorWebviewContent(errorMessage: string): string {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error</title>
+    return `<h2 class="errTitle">Couldn't update the diagram</h2>
+    <p class="errMsg">${errorMessage}</p>
     <style>
-        body {
+        .errTitle {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             padding: 20px;
             color: #d32f2f;
@@ -623,53 +625,18 @@ function getErrorWebviewContent(errorMessage: string): string {
             user-select: none;
             -webkit-user-select: none;
         }
-        pre {
-            background-color: #f5f5f5;
+        .errMsg {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #d32f2f;
+            /* Prevenir selección para evitar que VSCode interprete los clics como selección */
+            user-select: none;
+            -webkit-user-select: none;
             padding: 10px;
             border-radius: 3px;
             overflow: auto;
         }
     </style>
-</head>
-<body>
-    <h2>Couldn't generate your automaton</h2>
-    <pre>${errorMessage}</pre>
-    <p>Make sure to have Graphviz and DOT installed and in your PATH.</p>
-    <script>
-        // Manejar eventos de clic selectivamente
-        document.addEventListener('click', function(e) {
-            // Permitir que los botones funcionen normalmente
-            if (e.target && (
-                e.target.tagName === 'BUTTON' || 
-                e.target.closest('button')
-            )) {
-                return true;
-            }
-            
-            // Para cualquier otro elemento, prevenir comportamiento predeterminado
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, true);
-        
-        // Manejar eventos de mousedown selectivamente
-        document.addEventListener('mousedown', function(e) {
-            // Permitir que los botones funcionen normalmente
-            if (e.target && (
-                e.target.tagName === 'BUTTON' || 
-                e.target.closest('button')
-            )) {
-                return true;
-            }
-            
-            // Para cualquier otro elemento, prevenir comportamiento predeterminado
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, true);
-    </script>
-</body>
-</html>`;
+    <h2 class="errTitle">Showing last correctly generated diagram...</h2>`;
 }
 
 export function deactivate() {
